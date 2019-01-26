@@ -26,9 +26,9 @@ def main():
     config = {}
     try:
         config = get_config(args.config)
-    except IOError, error:
+    except (IOError) as error:
         sys.exit(error)
-    except SyntaxError, error:
+    except (SyntaxError) as error:
         print(error)
         sys.exit(1)
 

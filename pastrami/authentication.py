@@ -21,7 +21,7 @@ def request_auth(app):
                         _.strip()
                         for _ in request.headers.get('Authorization', '').split(' ')
                     ]
-                except ValueError:
+                except (ValueError):
                     key = False
                     value = False
 

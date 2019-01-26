@@ -18,7 +18,7 @@ def get_database_handler():
     with APP.app_context():
         try:
             database = current_app.config['PastramiDB']
-        except KeyError:
+        except (KeyError):
             database = PastramiDB(**current_app.config['db'])
             current_app.config['PastramiDB'] = database
 
@@ -63,6 +63,12 @@ API = Api(
         }
     }
 )
+
+@API.errorhandler(RuntimeError)
+def handle_runtime_error(error):
+    '''Return a custom message and 400 status code'''
+    abort(503, error)
+
 NAMESPACE = API.namespace('api', description='Text operations')
 
 # Data model for API 1.0

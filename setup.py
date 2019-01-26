@@ -1,4 +1,5 @@
 import codecs
+import sys
 import uuid
 
 from os.path import abspath, dirname, join
@@ -18,7 +19,10 @@ def get_long_description():
         return readme.read()
 
 def get_requirements():
-    install_reqs = parse_requirements('requirements.txt', session=uuid.uuid1())
+    filename = 'requirements.txt'
+    if sys.version_info[0] < 3:
+        filename = 'requirements2.txt'
+    install_reqs = parse_requirements(filename, session=uuid.uuid1())
     return [str(ir.req) for ir in install_reqs]
 
 
@@ -30,7 +34,9 @@ setup(
     version=this_package.__version__,
     packages=find_packages(),
     package_data={this_package.__name__: [
-        'html/*'
+        'templates/*',
+        'static/*',
+        '*.yml'
     ]},
     install_requires=get_requirements(),
     include_package_data=True,
@@ -40,5 +46,5 @@ setup(
         ],
     },
     long_description=get_long_description(),
-    zip_safe=True
+    zip_safe=False
 )

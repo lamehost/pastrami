@@ -25,17 +25,11 @@ BASE = declarative_base()
 
 
 class PastramiDB(object):
-    def __init__(self, path=':memory:', secret=None):
-        if secret:
-            self.engine = create_engine(
-                'sqlite+pysqlcipher://:%s@/%s?cipher=aes-256-cfb&kdf_iter=64000' % (path, secret),
-                convert_unicode=True
-            )
-        else:
-            self.engine = create_engine(
-                'sqlite:///%s' % path,
-                convert_unicode=True
-            )
+    def __init__(self, path='pastrami.db', secret=''):
+        self.engine = create_engine(
+            'sqlite+pysqlcipher://:%s@/%s?cipher=aes-256-cfb&kdf_iter=64000' % (secret, path),
+            convert_unicode=True
+        )
 
         self.session = scoped_session(
             sessionmaker(
@@ -48,6 +42,7 @@ class PastramiDB(object):
         self.base.query = self.session.query_property()
         self.text = Text
 
+        # I can't understand how to catch pysqlcipher.dbapi2.DatabaseError here
         self.base.metadata.create_all(self.engine)
 
 

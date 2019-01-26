@@ -30,12 +30,15 @@ properties:
         properties:
             path:
                 type: string
-                default: router01.pop01
-                description: User friendly name of the router
+                default: 'pastrami.db'
+                description: Path of the database
+                not:
+                    enum:
+                        - ':memory:'
             secret:
                 type: string
-                default: 192.0.2.1
-                description: Hostname or IP address of the router
+                default: ''
+                description: Database encryption secret
         required:
             - path
             - secret
