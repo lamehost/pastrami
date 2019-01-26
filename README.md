@@ -14,7 +14,7 @@ pip install git+https://github.com/lamehost/pastrami.git
 # Apache WSGI
 In case you want to integrate Pastrami as WSGI in Apache, here's a snippet you can use.  
 ```
-#!/usr/bin/python
+#!/usr/bin/env python
 
 from __future__ import absolute_import
 from __future__ import print_function
