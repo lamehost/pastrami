@@ -1,0 +1,7 @@
+include *.md
+include LICENSE
+include requirements.txt
+recursive-include pastrami *.py
+recursive-include pastrami *.yml
+recursive-include pastrami *.html
+recursive-include pastrami *.css
