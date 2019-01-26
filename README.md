@@ -24,16 +24,21 @@ import os
 from flask import current_app
 
 from pastrami.configuration import get_config
-from pastrami.pastrami import APP
+from pastrami.pastrami import APP as application
 
 # Get config file
 config_file = os.environ.get('config', 'pastrami.conf')
+
+# Handle relative paths
+if not os.path.isabs(config_file):
+        basedir = os.path.dirname(os.path.realpath(__file__))
+        config_file = os.path.join(basedir, config_file)
 
 # Read config
 config = get_config(config_file)
 
 # Configure app
-with APP.app_context():
+with application.app_context():
     for key, value in config.items():
         current_app.config[key] = value
 ```
