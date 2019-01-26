@@ -1,0 +1,47 @@
+title: Configuration
+type: object
+properties:
+    host:
+        type: string
+        default : localhost
+        description: The hostname to bind the server to
+    port:
+        type: integer
+        default : 8080
+        minimum: 1
+        maximum: 65535
+        description: The port to bind the server to
+    authkey:
+        type: string
+        default : verysecretkey
+        description: Authkey to read all the text via API
+    dayspan:
+        type: integer
+        default : 90
+        minimum: 1
+        maximum: 65535
+        description: Amount of days the texts stay on the database
+    debug:
+        type: boolean
+        default : false
+        description: Enable debug messages
+    db:
+        type: object
+        properties:
+            path:
+                type: string
+                default: router01.pop01
+                description: User friendly name of the router
+            secret:
+                type: string
+                default: 192.0.2.1
+                description: Hostname or IP address of the router
+        required:
+            - path
+            - secret
+        additionalProperties: False
+required:
+    - db
+    - host
+    - port
+additionalProperties: False

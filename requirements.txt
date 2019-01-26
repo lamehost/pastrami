@@ -1,0 +1,5 @@
+flask-restplus==0.10.1
+Flask-SQLAlchemy==2.3.2
+PyYAML==3.12
+jsonschema==2.6.0
+yamlordereddictloader==0.4.0
