@@ -15,24 +15,25 @@ pip install git+https://github.com/lamehost/pastrami.git
 In case you want to integrate Pastrami as WSGI in Apache, here's a snippet you can use.  
 ```
 #!/usr/bin/python
+
+from __future__ import absolute_import
+from __future__ import print_function
+
 import os
+
 from flask import current_app
+
 from pastrami.configuration import get_config
-from pastrami.cli import pastrami as application
+from pastrami.pastrami import APP
 
 # Get config file
 config_file = os.environ.get('config', 'pastrami.conf')
-
-# Handle relative paths
-if not os.path.isabs(config_file):
-        basedir = os.path.dirname(os.path.realpath(__file__))
-        config_file = os.path.join(basedir, config_file)
 
 # Read config
 config = get_config(config_file)
 
 # Configure app
-with application.app_context():
+with APP.app_context():
     for key, value in config.items():
         current_app.config[key] = value
 ```
