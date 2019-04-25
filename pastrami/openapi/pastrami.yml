@@ -1,0 +1,78 @@
+openapi: 3.0.0
+servers:
+  - url: /api/2.0
+info:
+  title: Text Copy/Paste Service
+  version: '0.2'
+paths:
+  /:
+    post:
+      tags:
+        - Text
+      operationId: pastrami.backend.post_text
+      summary: Post new Text
+      requestBody:
+        description: Text content
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Text'
+      responses:
+        '201':
+          description: New Text created
+  /{text_id}:
+    get:
+      tags:
+        - Text
+      operationId: pastrami.backend.get_text
+      summary: Get Text by ID
+      parameters:
+        - $ref: '#/components/parameters/text_id'
+      responses:
+        '200':
+          description: Return Text
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Text'
+components:
+  parameters:
+    text_id:
+      name: text_id
+      description: Text's unique identifier
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-zA-Z0-9-]+$'
+    text:
+      name: text
+      description: Text content
+      in: body
+      required: true
+      schema:
+        type: string
+  schemas:
+    Text:
+      type: object
+      required:
+        - text
+      properties:
+        text_id:
+          type: string
+          description: Unique identifier
+          example: '123'
+          readOnly: true
+        text:
+          type: string
+          description: Text snipped
+          example: Lorem ipsum
+          minLength: 1
+          maxLength: 1000000
+        modified:
+          type: string
+          format: date-time
+          description: Creation time
+          example: '2015-07-07T15:49:51.230+02:00'
+          readOnly: true

@@ -11,6 +11,7 @@ from sqlalchemy import create_engine
 from sqlalchemy import Column, DateTime, String
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.exc import IntegrityError as DBIntegritiError
 
 
 def random_id(lenght=6):
@@ -24,7 +25,7 @@ def random_id(lenght=6):
 BASE = declarative_base()
 
 
-class PastramiDB(object):
+class PastramiDB():
     def __init__(self, path='pastrami.db', secret=''):
         self.engine = create_engine(
             'sqlite+pysqlcipher://:%s@/%s?cipher=aes-256-cfb&kdf_iter=64000' % (secret, path),

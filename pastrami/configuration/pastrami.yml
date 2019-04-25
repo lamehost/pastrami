@@ -1,16 +1,6 @@
 title: Configuration
 type: object
 properties:
-    host:
-        type: string
-        default : localhost
-        description: The hostname to bind the server to
-    port:
-        type: integer
-        default : 8080
-        minimum: 1
-        maximum: 65535
-        description: The port to bind the server to
     authkey:
         type: string
         default : verysecretkey
@@ -45,6 +35,4 @@ properties:
         additionalProperties: False
 required:
     - db
-    - host
-    - port
 additionalProperties: False

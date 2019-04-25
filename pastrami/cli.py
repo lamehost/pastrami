@@ -4,17 +4,32 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import argparse
-import sys
 
-from flask import current_app
+from werkzeug.serving import run_simple
 
-from pastrami.configuration import get_config
-from pastrami.pastrami import APP
+from pastrami.webapp import create_app
 
 
 def main():
     # Parse the arguments
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "host",
+        metavar="HOST",
+        default="0.0.0.0",
+        nargs='?',
+        help="Hostname to bind to"
+    )
+    args = parser.parse_args()
+    parser.add_argument(
+        "port",
+        metavar="PORT",
+        default="8080",
+        nargs='?',
+        type=int,
+        help="TCP port to bind to"
+    )
+    args = parser.parse_args()
     parser.add_argument(
         "config",
         metavar="FILE",
@@ -24,24 +39,13 @@ def main():
     )
     args = parser.parse_args()
 
-    # Read configuration
-    config = {}
-    try:
-        config = get_config(args.config)
-    except (IOError) as error:
-        sys.exit(error)
-    except (SyntaxError) as error:
-        print(error)
-        sys.exit(1)
-
-    with APP.app_context():
-        for key, value in config.items():
-            current_app.config[key] = value
-
-    APP.run(
-        debug=config['debug'],
-        host=config['host'],
-        port=config['port']
+    run_simple(
+        args.host,
+        args.port,
+        create_app(args.config),
+        use_reloader=True,
+        use_debugger=True,
+        use_evalex=True
     )
 
 

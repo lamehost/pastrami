@@ -20,8 +20,8 @@ def get_long_description():
 
 def get_requirements():
     filename = 'requirements.txt'
-    if sys.version_info[0] < 3:
-        filename = 'requirements2.txt'
+#    if sys.version_info[0] < 3:
+#        filename = 'requirements2.txt'
     install_reqs = parse_requirements(filename, session=uuid.uuid1())
     return [str(ir.req) for ir in install_reqs]
 
