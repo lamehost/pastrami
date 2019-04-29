@@ -16,23 +16,9 @@ properties:
         default : false
         description: Enable debug messages
     db:
-        type: object
-        properties:
-            path:
-                type: string
-                default: 'pastrami.db'
-                description: Path of the database
-                not:
-                    enum:
-                        - ':memory:'
-            secret:
-                type: string
-                default: ''
-                description: Database encryption secret
-        required:
-            - path
-            - secret
-        additionalProperties: False
+        type: string
+        default: 'pastrami.db'
+        description: Path to the database
 required:
     - db
 additionalProperties: False

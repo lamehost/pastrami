@@ -6,6 +6,7 @@ from __future__ import print_function
 import sys
 
 from pastrami.configuration import get_config
+from pastrami.database import PastramiDB
 from pastrami.backend import create_app as backend
 from pastrami.frontend import create_app as frontend
 
@@ -34,7 +35,6 @@ class DispatcherMiddleware():
 
 
 def create_app(config_file='pastrami.conf'):
-
     config = {}
     try:
         config = get_config(config_file, 'configuration/pastrami.yml')
@@ -43,6 +43,8 @@ def create_app(config_file='pastrami.conf'):
     except (SyntaxError) as error:
         print(error)
         sys.exit(1)
+
+    config['__db_instance'] = PastramiDB(config['db'])
 
     app = DispatcherMiddleware(
         frontend(config), {

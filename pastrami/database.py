@@ -3,6 +3,7 @@
 from __future__ import absolute_import
 
 import random
+import sys
 
 from string import ascii_letters, digits
 from datetime import datetime
@@ -26,11 +27,19 @@ BASE = declarative_base()
 
 
 class PastramiDB():
-    def __init__(self, path='pastrami.db', secret=''):
-        self.engine = create_engine(
-            'sqlite+pysqlcipher://:%s@/%s?cipher=aes-256-cfb&kdf_iter=64000' % (secret, path),
-            convert_unicode=True
-        )
+    def __init__(self, path='pastrami.db'):
+        if path == ":memory:":
+            DB_URI = 'file::memory:?cache=shared'
+            PY2 = sys.version_info.major == 2
+            if PY2:
+                params = {}
+            else:
+                params = {'uri': True}
+            import sqlite3
+            creator = lambda: sqlite3.connect(DB_URI, **params)
+            self.engine = create_engine('sqlite:///:memory:', creator=creator, convert_unicode=True)
+        else:
+            self.engine = create_engine('sqlite:///%s' %  path, convert_unicode=True)
 
         self.session = scoped_session(
             sessionmaker(

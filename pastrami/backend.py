@@ -5,8 +5,6 @@ from __future__ import absolute_import
 from flask import current_app, abort
 import connexion
 
-from pastrami.database import PastramiDB, DBIntegritiError
-
 
 def create_app(config=None):
     config = config or {}
@@ -24,13 +22,11 @@ def create_app(config=None):
         for key, value in config.items():
             application.app.config[key] = value
 
-    application.app.config['PastramiDB'] = PastramiDB(**application.app.config['db'])
-
     return application
 
 def get_text(text_id):
     '''Fetch a given resource'''
-    database = current_app.config['PastramiDB']
+    database = current_app.config['__db_instance']
     result = database.text.query.get(text_id)
     if not result:
         abort(404, "Text '{}' doesn't exist".format(text_id))
@@ -38,7 +34,7 @@ def get_text(text_id):
 
 def post_text(body):
     '''Create a new text'''
-    database = current_app.config['PastramiDB']
+    database = current_app.config['__db_instance']
     text = database.text(text=body['text'])
     database.session.add(text)
     database.session.commit()
