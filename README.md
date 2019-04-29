@@ -66,4 +66,4 @@ You can save the above as ''pastrami.wsgi'' and configure your site as follows:
 ```
 
 # Swagger
-API's are documented via Swagger at ''/doc''
+API's are documented via Swagger at ''/api/2.0/ui''
