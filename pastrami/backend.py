@@ -22,6 +22,11 @@ def create_app(config=None):
         for key, value in config.items():
             application.app.config[key] = value
 
+    try:
+        application.debug = config['debug']
+    except KeyError:
+        pass
+
     return application
 
 def get_text(text_id):
