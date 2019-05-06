@@ -2,7 +2,9 @@
 
 from __future__ import absolute_import
 
-from flask import Flask, render_template, current_app, abort, request
+from flask import Flask, render_template, current_app, abort, request, jsonify
+
+from pastrami.database import DBIntegritiError
 
 
 def create_app(config=None):
@@ -32,9 +34,14 @@ def create_app(config=None):
 
         body = request.data.decode("utf-8")
         text = database.text(text=body, text_id=text_id)
-        database.session.add(text)
-        database.session.commit()
-        return "OK", 200
+        try:
+            database.session.add(text)
+            database.session.commit()
+        except DBIntegritiError:
+            abort(409, "Duplicated text ID: %s" % text_id)
+
+        result = jsonify({'text': text.text, 'text_id': text.text_id, 'modified': text.modified})
+        return result, 201
 
     @application.route('/<string:text_id>/text')
     def text_html(text_id):
