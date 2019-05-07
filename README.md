@@ -12,38 +12,16 @@ pip install git+https://github.com/lamehost/pastrami.git
 ```
 
 # Apache WSGI
-In case you want to integrate Pastrami as WSGI in Apache, here's a snippet you can use.  
+Best way to run Pastrami is to run it as a WSGI application on Apache.  
+First you create your own application as below:
 ```
 #!/usr/bin/env python
 
-from __future__ import absolute_import
-from __future__ import print_function
-
-import os
-
-from flask import current_app
-
-from pastrami.configuration import get_config
-from pastrami.pastrami import APP as application
-
-# Get config file
-config_file = os.environ.get('config', 'pastrami.conf')
-
-# Handle relative paths
-if not os.path.isabs(config_file):
-        basedir = os.path.dirname(os.path.realpath(__file__))
-        config_file = os.path.join(basedir, config_file)
-
-# Read config
-config = get_config(config_file)
-
-# Configure app
-with application.app_context():
-    for key, value in config.items():
-        current_app.config[key] = value
+from pastrami.webapp
+import application
 ```
 
-You can save the above as ''pastrami.wsgi'' and configure your site as follows:
+Then you configure apache as follows (assuming application is named after *apache.wsgi*):
 ```
 <VirtualHost *:80>
     ServerAdmin webmaster@example.com
@@ -66,4 +44,4 @@ You can save the above as ''pastrami.wsgi'' and configure your site as follows:
 ```
 
 # Swagger
-API's are documented via Swagger at ''/api/2.0/ui''
+API's are documented via Swagger at */api/2.0/ui*
