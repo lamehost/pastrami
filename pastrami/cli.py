@@ -20,7 +20,6 @@ def main():
         nargs='?',
         help="Hostname to bind to"
     )
-    args = parser.parse_args()
     parser.add_argument(
         "port",
         metavar="PORT",
@@ -29,7 +28,6 @@ def main():
         type=int,
         help="TCP port to bind to"
     )
-    args = parser.parse_args()
     parser.add_argument(
         "config",
         metavar="FILE",
