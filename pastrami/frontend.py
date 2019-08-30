@@ -46,7 +46,7 @@ def create_app(config=None):
     @application.route('/<string:text_id>/text')
     def text_html(text_id):
         text = get_content_by_id(text_id)
-        return str("<pre>%s</pre>" % text)
+        return str(text), 200, {'mimetype': 'text/plain'}
 
     def get_content_by_id(text_id):
         database = current_app.config['__db_instance']
