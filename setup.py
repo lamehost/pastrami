@@ -1,50 +1,39 @@
 import codecs
-import sys
-import uuid
 
 from os.path import abspath, dirname, join
-from setuptools import setup, find_packages
-try: # for pip >= 10
-    from pip._internal.req import parse_requirements
-except ImportError: # for pip < 10
-    from pip.req import parse_requirements
+from setuptools import setup
 
-import pastrami as this_package
+NAME = 'pastrami'
+HERE = abspath(dirname(__file__))
 
+ABOUT = dict()
+with open(join(NAME, '__about__.py')) as _:
+    exec(_.read(), ABOUT)
 
+HERE = abspath(dirname(__file__))
+with codecs.open(join(HERE, 'README.md'), encoding='utf-8') as _:
+    README = _.read()
 
-def get_long_description():
-    here = abspath(dirname(__file__))
-    with codecs.open(join(here, 'README.md'), encoding='utf-8') as readme:
-        return readme.read()
-
-def get_requirements():
-    filename = 'requirements.txt'
-#    if sys.version_info[0] < 3:
-#        filename = 'requirements2.txt'
-    install_reqs = parse_requirements(filename, session=uuid.uuid1())
-    return [str(ir.req) for ir in install_reqs]
-
+with open('requirements.txt') as file:
+    REQS = [line.strip() for line in file if line and not line.startswith("#")]
 
 setup(
-    name=this_package.__name__,
-    author=this_package.__author__,
-    author_email=this_package.__author_email__,
-    url=this_package.__url__,
-    version=this_package.__version__,
-    packages=find_packages(),
-    package_data={this_package.__name__: [
-        'templates/*',
-        'static/*',
+    name=NAME,
+    author=ABOUT['__author__'],
+    author_email=ABOUT['__author_email__'],
+    url=ABOUT['__url__'],
+    version=ABOUT['__version__'],
+    packages=[NAME],
+    package_data={NAME: [
         '*.yml'
     ]},
-    install_requires=get_requirements(),
+    install_requires=REQS,
     include_package_data=True,
     entry_points={
         'console_scripts': [
-            '%s = %s.cli:main' % (this_package.__name__, this_package.__name__),
+            '%s = %s.__main__:main' % (NAME, NAME),
         ],
     },
-    long_description=get_long_description(),
+    long_description=README,
     zip_safe=False
 )
