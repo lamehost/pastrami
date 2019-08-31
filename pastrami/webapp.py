@@ -5,7 +5,7 @@ from __future__ import print_function
 
 import sys
 
-from pastrami.configuration import get_config
+from pastrami.config import get_config
 from pastrami.database import PastramiDB
 from pastrami.backend import create_app as backend
 from pastrami.frontend import create_app as frontend
