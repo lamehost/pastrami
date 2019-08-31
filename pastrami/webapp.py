@@ -37,7 +37,7 @@ class DispatcherMiddleware():
 def create_app(config_file='pastrami.conf'):
     config = {}
     try:
-        config = get_config(config_file, 'configuration/pastrami.yml')
+        config = get_config(config_file, 'config.yml')
     except (IOError) as error:
         sys.exit(error)
     except (SyntaxError) as error:
@@ -54,5 +54,3 @@ def create_app(config_file='pastrami.conf'):
 
     return app
 
-
-application = create_app()
