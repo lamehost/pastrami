@@ -22,57 +22,103 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
-from __future__ import absolute_import
-from __future__ import print_function
-
+import os
 import sys
 
-from pastrami.config import get_config
+from schemed_yaml_config import get_config
+from flask import current_app, abort, render_template, request, g
+import connexion
+
 from pastrami.database import PastramiDB
-from pastrami.backend import create_app as backend
-from pastrami.frontend import create_app as frontend
 
 
-class DispatcherMiddleware():
-    def __init__(self, app, mounts=None):
-        self.app = app
-        self.mounts = mounts or {}
+# Application factory
+def create_app(config=False):
+    config = config or ""
 
-    def __call__(self, environ, start_response):
-        script = environ.get("PATH_INFO", "")
-
-        while "/" in script:
-            if script in self.mounts:
-                app = self.mounts[script]
-                break
-
-            script = next(iter(script.rsplit("/", 1)))
-        else:
-            app = self.mounts.get(script, self.app)
-
-        original_script_name = environ.get("SCRIPT_NAME", "")
-        environ["SCRIPT_NAME"] = original_script_name + script
-        # environ["PATH_INFO"] = path_info
-        return app(environ, start_response)
-
-
-def create_app(config_file='pastrami.conf'):
-    config = {}
+    # Import config
+    config_schema = os.path.join(os.path.dirname(__file__), 'config.yml')
     try:
-        config = get_config(config_file, 'config.yml')
+        config = get_config(config, config_schema)
     except (IOError) as error:
         sys.exit(error)
     except (SyntaxError) as error:
-        print(error)
-        sys.exit(1)
+        sys.exit(error)
+    config = {k.upper(): v for k, v in config.items()}
 
-    config['__db_instance'] = PastramiDB(config['db'])
-
-    app = DispatcherMiddleware(
-        frontend(config), {
-            '/api/2.0': backend(config)
+    application = connexion.FlaskApp(
+        __name__,
+        specification_dir='openapi/',
+        options={
+            "swagger_ui": True
         }
     )
+    application.add_api('pastrami.yml')
+    application.app.config.from_mapping(**config)
 
-    return app
+    @application.route('/', methods=['GET'])
+    @application.route('/<string:text_id>', methods=['GET'])
+    def index_html(text_id=False):
+        text = {}
+        if text_id:
+            if text_id.lower()[-4:] == '.txt':
+                return text_html(text_id[:-4])
+            else:
+                text = get_content_by_id(text_id)
+        return render_template('index.html', text=text)
 
+    @application.route('/<string:text_id>', methods=['PUT'])
+    def put_text(text_id=False):
+        '''Create a new text'''
+        database = get_db()
+
+        body = request.data.decode("utf-8")
+        text = database.text(text=body, text_id=text_id)
+        try:
+            database.session.add(text)
+            database.session.commit()
+        except DBIntegritiError:
+            abort(409, "Duplicated text ID: %s" % text_id)
+
+        result = jsonify({'text': text.text, 'text_id': text.text_id, 'modified': text.modified})
+        return result, 201
+
+    @application.route('/<string:text_id>/text')
+    def text_html(text_id):
+        text = get_content_by_id(text_id)
+        return str(text), 200, {'Content-Type': 'text/plain'}
+
+    def get_content_by_id(text_id):
+        database = get_db()
+        text = database.text.query.get(text_id)
+        if not text:
+            abort(404, "Text '{}' doesn't exist".format(text_id))
+
+        return text
+
+    return application
+
+
+# Database shorthand
+def get_db():
+    if 'db' not in g:
+        g.db = PastramiDB(current_app.config['DB'],)
+    return g.db
+
+
+# API Calls
+def get_text(text_id):
+    '''Fetch a given resource'''
+    database = get_db()
+    result = database.text.query.get(text_id)
+    if not result:
+        abort(404, "Text '{}' doesn't exist".format(text_id))
+    return result
+
+def post_text(body):
+    '''Create a new text'''
+    database = get_db()
+    text = database.text(text=body['text'])
+    database.session.add(text)
+    database.session.commit()
+    return {'text': text.text, 'text_id': text.text_id, 'modified': text.modified}, 201

@@ -31,7 +31,7 @@ paths:
     post:
       tags:
         - Text
-      operationId: pastrami.backend.post_text
+      operationId: pastrami.webapp.post_text
       summary: Post new Text
       requestBody:
         description: Text content
@@ -47,7 +47,7 @@ paths:
     get:
       tags:
         - Text
-      operationId: pastrami.backend.get_text
+      operationId: pastrami.webapp.get_text
       summary: Get Text by ID
       parameters:
         - $ref: '#/components/parameters/text_id'

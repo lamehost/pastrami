@@ -23,10 +23,6 @@
 title: Configuration
 type: object
 properties:
-    authkey:
-        type: string
-        default : verysecretkey
-        description: Authkey to read all the text via API
     dayspan:
         type: integer
         default : 90

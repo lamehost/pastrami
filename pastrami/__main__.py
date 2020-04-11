@@ -22,8 +22,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
-from __future__ import absolute_import
-from __future__ import print_function
 
 import argparse
 
@@ -59,13 +57,15 @@ def main():
     )
     args = parser.parse_args()
 
+    application = create_app(args.config)
+    debug = application.app.config['DEBUG']
     run_simple(
         args.host,
         args.port,
-        create_app(args.config),
-        use_reloader=True,
-        use_debugger=True,
-        use_evalex=True
+        application,
+        use_reloader=debug,
+        use_debugger=debug,
+        use_evalex=debug
     )
 
 
