@@ -1,6 +1,6 @@
 # Pastrami
 
-Text pasting service.
+Pastebin service.
 
 # Install
 The easyest way to install Pastrami is via PIP
