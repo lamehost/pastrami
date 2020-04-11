@@ -20,4 +20,4 @@ WORKDIR /app
 
 # Run pastrami
 USER nobody
-CMD ["gunicorn", "-b", "0.0.0.0:8080", "pastrami.webapp:application"]
+CMD ["gunicorn", "-b", "0.0.0.0:8080", "pastrami.webapp:create_app('pastrami.conf')"]
