@@ -26,6 +26,7 @@ from __future__ import absolute_import
 
 import random
 import sys
+import sqlite3
 
 from string import ascii_letters, digits
 from datetime import datetime
@@ -51,14 +52,13 @@ BASE = declarative_base()
 class PastramiDB():
     def __init__(self, path='pastrami.db'):
         if path == ":memory:":
-            DB_URI = 'file::memory:?cache=shared'
-            PY2 = sys.version_info.major == 2
-            if PY2:
+            uri = 'file::memory:?cache=shared'
+            python_version = sys.version_info.major == 2
+            if python_version:
                 params = {}
             else:
                 params = {'uri': True}
-            import sqlite3
-            creator = lambda: sqlite3.connect(DB_URI, **params)
+            creator = lambda: sqlite3.connect(uri, **params)
             self.engine = create_engine('sqlite:///:memory:', creator=creator, convert_unicode=True)
         else:
             self.engine = create_engine('sqlite:///%s' %  path, convert_unicode=True)

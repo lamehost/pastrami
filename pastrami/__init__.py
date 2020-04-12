@@ -35,4 +35,3 @@ from .__about__ import (
     __license__,
     __classifiers__
 )
-

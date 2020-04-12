@@ -27,10 +27,9 @@ __url__ = "https://github.com/lamehost/anastasia/"
 __description__ = "**VERY** minimalistic REST interface for image upload"
 __license__ = "MIT"
 __classifiers__ = [
-   'Intended Audience :: Developers',
+    'Intended Audience :: Developers',
     'Topic :: Software Development :: Libraries :: Python Modules',
     'License :: OSI Approved :: MIT License',
     'Programming Language :: Python :: 3.6'
 ]
 __classifiers__ = []
-

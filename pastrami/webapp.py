@@ -26,7 +26,7 @@ import os
 import sys
 
 from schemed_yaml_config import get_config
-from flask import current_app, abort, render_template, request, g
+from flask import current_app, abort, render_template, request, g, jsonify
 import connexion
 
 from pastrami.database import PastramiDB
@@ -63,8 +63,7 @@ def create_app(config=False):
         if text_id:
             if text_id.lower()[-4:] == '.txt':
                 return text_html(text_id[:-4])
-            else:
-                text = get_content_by_id(text_id)
+            text = get_content_by_id(text_id)
         return render_template('index.html', text=text)
 
     @application.route('/<string:text_id>', methods=['PUT'])
