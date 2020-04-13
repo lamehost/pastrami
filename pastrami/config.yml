@@ -23,6 +23,11 @@
 title: Configuration
 type: object
 properties:
+    maxlength:
+        type: integer
+        default : 5000
+        minimum: 1
+        description: Maximum amount of characters for each message
     dayspan:
         type: integer
         default : 90

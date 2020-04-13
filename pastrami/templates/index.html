@@ -27,74 +27,98 @@ SOFTWARE
 
 <head>
     <title>Pastrami</title>
-    <style>
-    body {
-        padding: 0;
-        margin: 0;
-    }
-
-    textarea {
-        width: 90%;
-        height: 90%;
-        overflow: auto;
-        border: 0;
-        padding: 0;
-        outline: none;
-        resize: none;
-        font-family: Menlo, "Bitstream Vera Sans Mono", "DejaVu Sans Mono", Monaco, Consolas, monospace;
-        font-size: 16px;
-        position: absolute;
-        top: 2em;
-        right: 2em;
-        bottom: 2em;
-        left: 4em;
-    }
-
-    @-moz-document url-prefix() {
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css"/>
+    <style type="text/css">
+        #info {
+            font-family: Menlo, "Bitstream Vera Sans Mono", "DejaVu Sans Mono", Monaco, Consolas, monospace;
+            font-size: 16px;
+            text-align: right;
+            width: 90%;
+            margin-left: 3.5em;
+        }
         textarea {
+            font-family: Menlo, "Bitstream Vera Sans Mono", "DejaVu Sans Mono", Monaco, Consolas, monospace;
+            font-size: 16px;
+            margin-left: 3.5em;
+            margin-top: 16px;
+            margin-bottom: 1em;
+            border: 0;
+            width: 90%;
+            height: 90vh;
+            outline: none;
+            resize: none;
+            background: transparent;
+        }
+
+        @-moz-document url-prefix() {
+            textarea {
+                width: 90%;
+                height: 90vh;
+            }
+        }
+
+        pre {
+            font-family: Menlo, "Bitstream Vera Sans Mono", "DejaVu Sans Mono", Monaco, Consolas, monospace;
+            font-size: 16px;
+            position: absolute;
             width: 90%;
             height: 90%;
+            min-height: 90%;
+            white-space: pre-wrap;       /* Since CSS 2.1 */
+            white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+            white-space: -pre-wrap;      /* Opera 4-6 */
+            white-space: -o-pre-wrap;    /* Opera 7 */
+            word-wrap: break-word;       /* Internet Explorer 5.5+ */
         }
-    }
 
-    pre {
-        font-family: Menlo, "Bitstream Vera Sans Mono", "DejaVu Sans Mono", Monaco, Consolas, monospace;
-        font-size: 16px;
-        position: absolute;
-        top: 1em;
-        right: 2em;
-        bottom: 2em;
-        left: 1.5em;
-    }
-
-    li.L0,
-    li.L1,
-    li.L2,
-    li.L3,
-    li.L5,
-    li.L6,
-    li.L7,
-    li.L8 {
-        list-style-type: decimal !important;
-    }
+        li.L0,
+        li.L1,
+        li.L2,
+        li.L3,
+        li.L5,
+        li.L6,
+        li.L7,
+        li.L8 {
+            list-style-type: decimal !important;
+        }
     </style>
 </head>
 
 <body>
     {% if text %}
-    <pre class="prettyprint linenums:1">{{text["text"]}}</pre> {% else %}
+    <pre class="prettyprint linenums:1">{{text["text"]}}</pre>
+    {% else %}
     <textarea class="form-control" id="paste" placeholder="[ paste text  -  ctrl+s to save ]" spellcheck="false"></textarea>
+    <div id="info">0 / {{maxlength}}</div>
     {% endif %}
 </body>
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.12.1/jquery.min.js"></script>
 <script src="//rawgit.com/google/code-prettify/master/loader/run_prettify.js?autoload=true"></script>
-<link rel="stylesheet" type="text/css" href="static/github-v2.min.css">
+<link rel="stylesheet" type="text/css" href="static/github-v2.min.css"/>
+
 <script>
+function isIE(){
+  var ua = window.navigator.userAgent;
+
+  return ua.indexOf('MSIE ') > 0 || ua.indexOf('Trident/') > 0 || ua.indexOf('Edge/') > 0
+}
+
+function showLength(length){
+    $("#info").html(length + " / {{maxlength}}")
+    if(length > {{maxlength}}) {
+        $("#info").css("color", "red");
+    }
+    else {
+        $("#info").css("color", "black");
+    }
+}
+
+
 $(document).bind("keydown", function(event) {
     var text;
     if (event.keyCode === 83 && event.ctrlKey) {
         event.preventDefault();
-
         text = $("#paste").val();
         $.ajax({
                 method: "POST",
@@ -106,6 +130,12 @@ $(document).bind("keydown", function(event) {
             })
             .done(function(data) {
                 window.location.href = data.text_id;
+            })
+            .fail(function(jqXHR) {
+                $("#info").css("color", "red");
+                $("#info").html(
+                    JSON.parse(jqXHR.responseText).detail
+                )
             });
     }
 });
@@ -113,6 +143,24 @@ $(document).bind("keydown", function(event) {
 $(document).ready(function() {
     $("#paste").focus();
 });
+
+$("#paste").keydown(function(event){
+    var length = $("#paste").val().length
+    showLength(length)
+});
+
+$("#paste").bind('paste', function(event){
+    if (isIE()) {
+        //IE allows to get the clipboard data of the window object.
+        content = window.clipboardData.getData('text');
+    } else {
+        //This works for Chrome and Firefox.
+        content = event.originalEvent.clipboardData.getData('text/plain');
+    }
+    var length = $("#paste").val().length + content.length
+    showLength(length)
+});
+
 </script>
 
 </html>

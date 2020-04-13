@@ -26,7 +26,7 @@ import os
 import sys
 
 from schemed_yaml_config import get_config
-from flask import current_app, abort, render_template, request, g, jsonify
+from flask import current_app, abort, render_template, request, g
 import connexion
 
 from pastrami.database import PastramiDB
@@ -64,23 +64,7 @@ def create_app(config=False):
             if text_id.lower()[-4:] == '.txt':
                 return text_html(text_id[:-4])
             text = get_content_by_id(text_id)
-        return render_template('index.html', text=text)
-
-    @application.route('/<string:text_id>', methods=['PUT'])
-    def put_text(text_id=False):
-        '''Create a new text'''
-        database = get_db()
-
-        body = request.data.decode("utf-8")
-        text = database.text(text=body, text_id=text_id)
-        try:
-            database.session.add(text)
-            database.session.commit()
-        except DBIntegritiError:
-            abort(409, "Duplicated text ID: %s" % text_id)
-
-        result = jsonify({'text': text.text, 'text_id': text.text_id, 'modified': text.modified})
-        return result, 201
+        return render_template('index.html', text=text, maxlength=config['MAXLENGTH'])
 
     @application.route('/<string:text_id>/text')
     def text_html(text_id):
@@ -101,7 +85,7 @@ def create_app(config=False):
 # Database shorthand
 def get_db():
     if 'db' not in g:
-        g.db = PastramiDB(current_app.config['DB'],)
+        g.db = PastramiDB(current_app.config['DB'])
     return g.db
 
 
@@ -118,6 +102,8 @@ def post_text(body):
     '''Create a new text'''
     database = get_db()
     text = database.text(text=body['text'])
+    if len(body['text']) > current_app.config['MAXLENGTH']:
+        abort(413, "Text exceed {} characters".format(current_app.config['MAXLENGTH']))
     database.session.add(text)
     database.session.commit()
     return {'text': text.text, 'text_id': text.text_id, 'modified': text.modified}, 201
