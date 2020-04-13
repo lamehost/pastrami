@@ -29,41 +29,58 @@ SOFTWARE
     <title>Pastrami</title>
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css"/>
     <style type="text/css">
-        #info {
-            font-family: Menlo, "Bitstream Vera Sans Mono", "DejaVu Sans Mono", Monaco, Consolas, monospace;
-            font-size: 16px;
-            text-align: right;
-            width: 90%;
-            margin-left: 3.5em;
+        div {
+            width: 87vw;
+            height: 86vh;
+            margin: 0;
+            margin-top: 4vh;
+            margin-bottom: 4vh;
+            margin-left: 6.5vw;
+            margin-right: 6.5vw;
+            padding: 0;
         }
+
         textarea {
-            font-family: Menlo, "Bitstream Vera Sans Mono", "DejaVu Sans Mono", Monaco, Consolas, monospace;
-            font-size: 16px;
-            margin-left: 3.5em;
-            margin-top: 16px;
-            margin-bottom: 1em;
-            border: 0;
-            width: 90%;
-            height: 90vh;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
             outline: none;
             resize: none;
             background: transparent;
+            font-family: Menlo, "Bitstream Vera Sans Mono", "DejaVu Sans Mono", Monaco, Consolas, monospace;
+            font-size: 16px;
+            border: 0px;
         }
 
         @-moz-document url-prefix() {
             textarea {
-                width: 90%;
-                height: 90vh;
+                width: 100%;
+                height: 100%;
             }
         }
 
-        pre {
+        #info {
             font-family: Menlo, "Bitstream Vera Sans Mono", "DejaVu Sans Mono", Monaco, Consolas, monospace;
             font-size: 16px;
-            position: absolute;
-            width: 90%;
-            height: 90%;
-            min-height: 90%;
+            right: 0;
+            bottom: 0px;
+            margin: 0;
+            height: 6vh;
+            width: 100%;
+            text-align: right;
+        }
+
+        pre {
+            width: 93vw;
+            height: 96vh;
+            margin: 0;
+            margin-top: 4vh;
+            margin-bottom: 4vh;
+            padding: 0 !important;
+            position: relative;
+            font-family: Menlo, "Bitstream Vera Sans Mono", "DejaVu Sans Mono", Monaco, Consolas, monospace;
+            font-size: 16px;
             white-space: pre-wrap;       /* Since CSS 2.1 */
             white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
             white-space: -pre-wrap;      /* Opera 4-6 */
@@ -80,6 +97,14 @@ SOFTWARE
         li.L7,
         li.L8 {
             list-style-type: decimal !important;
+            margin: 0;
+            padding-left: 1vw !important;
+        }
+
+        ol.linenums {
+            margin: 0;
+            padding: 0 !important;
+            padding-left: 5.5vw !important;
         }
     </style>
 </head>
@@ -88,8 +113,10 @@ SOFTWARE
     {% if text %}
     <pre class="prettyprint linenums:1">{{text["text"]}}</pre>
     {% else %}
-    <textarea class="form-control" id="paste" placeholder="[ paste text  -  ctrl+s to save ]" spellcheck="false"></textarea>
-    <div id="info">0 / {{maxlength}}</div>
+    <div>
+        <textarea class="form-control" id="paste" placeholder="[ paste text  -  ctrl+s to save ]" spellcheck="false"></textarea>
+        <div id="info">0 / {{maxlength}}</div>
+    </div>
     {% endif %}
 </body>
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
