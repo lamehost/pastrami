@@ -101,9 +101,9 @@ def get_text(text_id):
 def post_text(body):
     '''Create a new text'''
     database = get_db()
-    text = database.text(text=body['text'])
     if len(body['text']) > current_app.config['MAXLENGTH']:
         abort(413, "Text exceed {} characters".format(current_app.config['MAXLENGTH']))
+    text = database.text(text=body['text'])
     database.session.add(text)
     database.session.commit()
     return {'text': text.text, 'text_id': text.text_id, 'modified': text.modified}, 201
