@@ -63,6 +63,7 @@ SOFTWARE
         #info {
             font-family: Menlo, "Bitstream Vera Sans Mono", "DejaVu Sans Mono", Monaco, Consolas, monospace;
             font-size: 16px;
+            color: gray;
             right: 0;
             bottom: 0px;
             margin: 0;
@@ -134,10 +135,10 @@ function isIE(){
 function showLength(length){
     $("#info").html(length + " / {{maxlength}}")
     if(length > {{maxlength}}) {
-        $("#info").css("color", "red");
+        $("#info").css("color", "crimson");
     }
     else {
-        $("#info").css("color", "black");
+        $("#info").css("color", "gray");
     }
 }
 
@@ -159,7 +160,7 @@ $(document).bind("keydown", function(event) {
                 window.location.href = data.text_id;
             })
             .fail(function(jqXHR) {
-                $("#info").css("color", "red");
+                $("#info").css("color", "crimson");
                 $("#info").html(
                     JSON.parse(jqXHR.responseText).detail
                 )
