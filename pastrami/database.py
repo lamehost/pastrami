@@ -35,7 +35,6 @@ from sqlalchemy import create_engine
 from sqlalchemy import Column, DateTime, String
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.exc import IntegrityError as DBIntegritiError
 
 
 def random_id(lenght=6):
@@ -61,7 +60,7 @@ class PastramiDB():
             creator = lambda: sqlite3.connect(uri, **params)
             self.engine = create_engine('sqlite:///:memory:', creator=creator, convert_unicode=True)
         else:
-            self.engine = create_engine('sqlite:///%s' %  path, convert_unicode=True)
+            self.engine = create_engine(f'sqlite:///{path}', convert_unicode=True)
 
         self.session = scoped_session(
             sessionmaker(
@@ -96,4 +95,4 @@ class Text(BASE):
     )
 
     def __repr__(self):
-        return self.text
+        return str(self.text)

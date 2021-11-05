@@ -68,13 +68,16 @@ components:
       schema:
         type: string
         pattern: '^[a-zA-Z0-9-]+$'
+
+  requestBodies:
     text:
-      name: text
       description: Text content
-      in: body
       required: true
-      schema:
-        type: string
+      content:
+        application/json:
+          schema:
+            type: string
+
   schemas:
     Text:
       type: object

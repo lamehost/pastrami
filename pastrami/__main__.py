@@ -49,7 +49,7 @@ def main():
         help="TCP port to bind to"
     )
     parser.add_argument(
-        "config",
+        "config_file",
         metavar="FILE",
         default="pastrami.conf",
         nargs='?',
@@ -57,7 +57,7 @@ def main():
     )
     args = parser.parse_args()
 
-    application = create_app(args.config)
+    application = create_app(args.config_file)
     debug = application.app.config['DEBUG']
     run_simple(
         args.host,

@@ -25,26 +25,27 @@
 import os
 import sys
 
-from schemed_yaml_config import get_config
-from flask import current_app, abort, render_template, request, g
+from schemed_yaml_config import Config
+from flask import current_app, abort, render_template, g
 import connexion
 
 from pastrami.database import PastramiDB
 
 
 # Application factory
-def create_app(config=False):
-    config = config or ""
+def create_app(config_file=False):
+    config_file = config_file or ""
 
     # Import config
     config_schema = os.path.join(os.path.dirname(__file__), 'config.yml')
     try:
-        config = get_config(config, config_schema)
+        config_parser = Config(config_schema)
+        config_parser.from_yaml_file(config_file)
     except (IOError) as error:
         sys.exit(error)
-    except (SyntaxError) as error:
+    except (RuntimeError) as error:
         sys.exit(error)
-    config = {k.upper(): v for k, v in config.items()}
+    config = {k.upper(): v for k, v in config_parser.config.items()}
 
     application = connexion.FlaskApp(
         __name__,
@@ -75,7 +76,7 @@ def create_app(config=False):
         database = get_db()
         text = database.text.query.get(text_id)
         if not text:
-            abort(404, "Text '{}' doesn't exist".format(text_id))
+            abort(404, f"Text '{text_id}' doesn't exist")
 
         return text
 
@@ -95,14 +96,14 @@ def get_text(text_id):
     database = get_db()
     result = database.text.query.get(text_id)
     if not result:
-        abort(404, "Text '{}' doesn't exist".format(text_id))
+        abort(404, f"Text '{text_id}' doesn't exist")
     return result
 
 def post_text(body):
     '''Create a new text'''
     database = get_db()
     if len(body['text']) > current_app.config['MAXLENGTH']:
-        abort(413, "Text exceed {} characters".format(current_app.config['MAXLENGTH']))
+        abort(413, f"Text exceed {current_app.config['MAXLENGTH']} characters")
     text = database.text(text=body['text'])
     database.session.add(text)
     database.session.commit()
