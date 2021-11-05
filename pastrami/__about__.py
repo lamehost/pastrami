@@ -30,6 +30,6 @@ __classifiers__ = [
     'Intended Audience :: Developers',
     'Topic :: Software Development :: Libraries :: Python Modules',
     'License :: OSI Approved :: MIT License',
-    'Programming Language :: Python :: 3.6'
+    'Programming Language :: Python :: 3.9'
 ]
 __classifiers__ = []
