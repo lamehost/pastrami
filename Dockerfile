@@ -1,23 +1,19 @@
-FROM alpine:3.7 as system
+FROM python:3.9.7-slim-buster as system
 
 # Install uwsgi
-RUN apk add --no-cache git python3 py3-gunicorn
-
+RUN pip install --no-cache-dir gunicorn==20.1.0
 
 FROM system
 
 # Install pastrami
-RUN pip3 install --no-cache-dir git+https://github.com/lamehost/pastrami.git
+ADD pastrami /pastrami
+ADD pastrami.conf /pastrami.conf
+ADD requirements.txt /requirements.txt
+RUN pip install --no-cache-dir -r /requirements.txt
 
 # Expose HTTP server port
 EXPOSE 8080
 
-# Prepare environment
-RUN mkdir /app
-RUN chown -R nobody /app
-WORKDIR /app
-
-
 # Run pastrami
 USER nobody
-CMD ["gunicorn", "-b", "0.0.0.0:8080", "pastrami.webapp:create_app('pastrami.conf')"]
+CMD ["gunicorn", "-b", "0.0.0.0:8080", "pastrami.webapp:create_app('/pastrami.conf')"]
