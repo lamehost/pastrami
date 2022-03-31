@@ -2,7 +2,7 @@
 
 # MIT License
 
-# Copyright (c) 2019, Marco Marzetti <marco@lamehost.it>
+# Copyright (c) 2022, Marco Marzetti <marco@lamehost.it>
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,7 @@ import sys
 from schemed_yaml_config import Config
 from flask import current_app, abort, render_template, g
 import connexion
+import markdown
 
 from pastrami.database import PastramiDB
 
@@ -64,6 +65,8 @@ def create_app(config_file=False):
         if text_id:
             if text_id.lower()[-4:] == '.txt':
                 return text_html(text_id[:-4])
+            elif text_id.lower()[-3:] == '.md':
+                return markdown_html(text_id[:-3])
             text = get_content_by_id(text_id)
         return render_template('index.html', text=text, maxlength=config['MAXLENGTH'])
 
@@ -71,6 +74,11 @@ def create_app(config_file=False):
     def text_html(text_id):
         text = get_content_by_id(text_id)
         return str(text), 200, {'Content-Type': 'text/plain'}
+
+    @application.route('/<string:text_id>/markdown')
+    def markdown_html(text_id):
+        text = get_content_by_id(text_id)
+        return markdown.markdown(str(text)), 200, {'Content-Type': 'text/html'}
 
     def get_content_by_id(text_id):
         database = get_db()
