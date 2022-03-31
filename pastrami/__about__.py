@@ -1,6 +1,6 @@
 # MIT License
 
-# Copyright (c) 2019, Marco Marzetti <marco@lamehost.it>
+# Copyright (c) 2022, Marco Marzetti <marco@lamehost.it>
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 __author__ = "Marco Marzetti"
 __author_email__ = "marco@lamehost.it"
 __url__ = "https://github.com/lamehost/anastasia/"
