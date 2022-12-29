@@ -1,19 +1,18 @@
-FROM python:3.9.7-slim-buster as system
+# *** Base ***
+FROM python:3.10.4-slim
 
-# Install uwsgi
-RUN pip install --no-cache-dir gunicorn==20.1.0
-
-FROM system
-
-# Install pastrami
+# Copy script
 ADD pastrami /pastrami
-ADD pastrami.conf /pastrami.conf
-ADD requirements.txt /requirements.txt
-RUN pip install --no-cache-dir -r /requirements.txt
+ADD README.md /
 
-# Expose HTTP server port
-EXPOSE 8080
+# Install Anastasia
+ADD pyproject.toml /pyproject.toml
+ADD poetry.lock /poetry.lock
+RUN pip install --no-cache-dir poetry
+RUN poetry config virtualenvs.create false \
+  && poetry install --no-interaction --no-ansi
 
-# Run pastrami
-USER nobody
-CMD ["gunicorn", "-b", "0.0.0.0:8080", "pastrami.webapp:create_app('/pastrami.conf')"]
+# Run script
+ENTRYPOINT [ "python3", "-m", "pastrami" ]
+
+HEALTHCHECK CMD curl --fail http://localhost:8080 || exit 1 

@@ -1,5 +1,0 @@
-SQLAlchemy==1.3.16
-schemed-yaml-config==1.0.3
-connexion==2.6.0
-swagger-ui-bundle==0.0.9
-Markdown==3.3.6

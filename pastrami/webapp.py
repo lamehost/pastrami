@@ -1,118 +1,253 @@
-# -*- coding: utf-8 -*-
-
 # MIT License
-
+#
 # Copyright (c) 2022, Marco Marzetti <marco@lamehost.it>
-
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE
+# SOFTWARE.
+
+"""
+FastAPI app.
+
+This module provies `create_app` which is a FastAPI app factory that provide
+API and web frontend for the application.
+"""
+
+#
+# Models lack the minimum amount of public methods
+# Also pydantic very often raises no-name-in-module
+#
+# pylint: disable=too-few-public-methods, no-name-in-module
+
 
 import os
-import sys
+from typing import Callable, Optional
 
-from schemed_yaml_config import Config
-from flask import current_app, abort, render_template, g
-import connexion
+from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse, PlainTextResponse
+
 import markdown
 
-from pastrami.database import PastramiDB
+from pastrami.__about__ import __version__ as VERSION
+from pastrami.database import Database, TextSchema
+from pastrami.settings import Settings
 
 
-# Application factory
-def create_app(config_file=False):
-    config_file = config_file or ""
+def create_app(settings: dict = False):
+    """
+    FastAPI app factory.
 
-    # Import config
-    config_schema = os.path.join(os.path.dirname(__file__), 'config.yml')
-    try:
-        config_parser = Config(config_schema)
-        config_parser.from_yaml_file(config_file)
-    except (IOError) as error:
-        sys.exit(error)
-    except (RuntimeError) as error:
-        sys.exit(error)
-    config = {k.upper(): v for k, v in config_parser.config.items()}
+    Parses configuration from `pastrami.cfg` and returns a FastAPI instance
+    that you can run via uvicorn.
 
-    application = connexion.FlaskApp(
-        __name__,
-        specification_dir='openapi/',
-        options={
-            "swagger_ui": True
-        }
+    Parameters:
+    ----------
+    api_mount_point: str
+        Path the API will be mounted on. (Default: '/api/')
+    settings: dict
+        App configuration settings. If False, get from configuration file.
+        Default: False
+
+    Returns:
+    --------
+    Fastapi: FastAPI app instance
+    """
+    # Read settings
+    if not settings:
+        settings = Settings().dict()
+
+    # Create root webapp
+    docs_url = '/docs' if settings['docs'] else False
+    webapp = FastAPI(
+        docs_url=docs_url,
+        contact={
+            "name": settings['contact']['name'],
+            "url": settings['contact']['url'],
+            "email": settings['contact']['email']
+        },
+        title="Pastrami",
+        description="Pastebin web service",
+        version=VERSION
     )
-    application.add_api('pastrami.yml')
-    application.app.config.from_mapping(**config)
 
-    @application.route('/', methods=['GET'])
-    @application.route('/<string:text_id>', methods=['GET'])
-    def index_html(text_id=False):
-        text = {}
+    # Add custom headers as recommended by
+    # https://github.com/shieldfy/API-Security-Checklist#output
+    @webapp.middleware("http")
+    async def add_custom_headers(request: Request, call_next: Callable):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "deny"
+        # Force restrictive content-security-policy for JSON content
+        try:
+            if response.headers['content-type'] == 'application/json':
+                response.headers["Content-Security-Policy"] = \
+                    "default-src 'none'"
+        except KeyError:
+            pass
+        return response
+
+    app_directory = os.path.dirname(os.path.realpath(__file__))
+
+    # Static files
+    static_directory = os.path.join(
+        app_directory, 'static'
+    )
+    webapp.mount(
+        "/static",
+        StaticFiles(directory=static_directory, html=True),
+        name="static"
+    )
+
+    # Default web page
+    templates = Jinja2Templates(
+        directory=os.path.join(
+            app_directory, 'templates'
+        )
+    )
+
+    @webapp.get(
+        "/{text_id:path}",
+        tags=["Frontend"]
+    )
+    async def index_html(
+        request: Request,
+        text_id: Optional[str] = False,
+        database: Database = Depends(Database(**settings['database']))
+    ):
+        await database.purge_expired(settings['dayspan'])
+
+        if text_id == "favicon.ico":
+            return
+
+        if text_id.lower().endswith('.txt'):
+            text_id = text_id[:-4]
+            text = await database.get_text(text_id)
+            if not text:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Unable to find text: {text_id}"
+                )
+
+            return PlainTextResponse(
+                content=text['content']
+            )
+
+        if text_id.lower().endswith('.md'):
+            text_id = text_id[:-3]
+            text = await database.get_text(text_id)
+            if not text:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Unable to find text: {text_id}"
+                )
+
+            return HTMLResponse(
+                content=markdown.markdown(str(text['content']))
+            )
+
         if text_id:
-            if text_id.lower()[-4:] == '.txt':
-                return text_html(text_id[:-4])
-            elif text_id.lower()[-3:] == '.md':
-                return markdown_html(text_id[:-3])
-            text = get_content_by_id(text_id)
-        return render_template('index.html', text=text, maxlength=config['MAXLENGTH'])
+            text = await database.get_text(text_id)
+            if not text:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Unable to find text: {text_id}"
+                )
+        else:
+            text = False
 
-    @application.route('/<string:text_id>/text')
-    def text_html(text_id):
-        text = get_content_by_id(text_id)
-        return str(text), 200, {'Content-Type': 'text/plain'}
+        return templates.TemplateResponse(
+            "index.html",
+            {
+                "request": request,
+                'maxlength': settings['maxlength'],
+                'text': text
+            }
+        )
 
-    @application.route('/<string:text_id>/markdown')
-    def markdown_html(text_id):
-        text = get_content_by_id(text_id)
-        return markdown.markdown(str(text)), 200, {'Content-Type': 'text/html'}
+    # API
+    @webapp.post(
+        "/",
+        response_model=TextSchema,
+        responses={
+            200: {"description": "Success"},
+            400: {"description": "Bad request"},
+            503: {"description": "Transient error"}
+        },
+        description="Create a nex Text",
+        tags=["API"]
+    )
+    async def add_text(
+        text: TextSchema,
+        database: Database = Depends(Database(**settings['database']))
+    ) -> dict:
+        """
+        Create Text.
 
-    def get_content_by_id(text_id):
-        database = get_db()
-        text = database.text.query.get(text_id)
-        if not text:
-            abort(404, f"Text '{text_id}' doesn't exist")
+        Arguments:
+        ----------
+        request: Request
+          The HTTP request object
+        Text: TextSchema
+          The schema object
 
-        return text
+        Returns:
+        --------
+        dict: Text Schema
+        """
 
-    return application
+        await database.purge_expired(settings['dayspan'])
 
+        text = await database.add_text(text)
+        return {
+            'text_id': text['text_id'],
+            'content': text['content'],
+            'modified': text['modified']
+        }
 
-# Database shorthand
-def get_db():
-    if 'db' not in g:
-        g.db = PastramiDB(current_app.config['DB'])
-    return g.db
+    @webapp.delete(
+        "/{text_id}",
+        status_code=204,
+        responses={
+            204: {"description": "Success"},
+            404: {"description": "Not found"},
+            503: {"description": "Transient error"}
+        },
+        description="Deletes an existing Text from database",
+        tags=["API"]
+    )
+    async def delete_text(
+        text_id: str,
+        database: Database = Depends(Database(**settings['database']))
+    ) -> None:
+        """
+        Delete Text.
 
+        Arguments:
+        ----------
+        text_id: str
+          Text object ID
+        """
 
-# API Calls
-def get_text(text_id):
-    '''Fetch a given resource'''
-    database = get_db()
-    result = database.text.query.get(text_id)
-    if not result:
-        abort(404, f"Text '{text_id}' doesn't exist")
-    return result
+        if not await database.delete_text(text_id):
+            raise HTTPException(
+                status_code=404,
+                detail=f"Unable to find text: {text_id}"
+            )
 
-def post_text(body):
-    '''Create a new text'''
-    database = get_db()
-    if len(body['text']) > current_app.config['MAXLENGTH']:
-        abort(413, f"Text exceed {current_app.config['MAXLENGTH']} characters")
-    text = database.text(text=body['text'])
-    database.session.add(text)
-    database.session.commit()
-    return {'text': text.text, 'text_id': text.text_id, 'modified': text.modified}, 201
+    return webapp

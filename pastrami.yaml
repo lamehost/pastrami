@@ -1,0 +1,13 @@
+database:
+  url: 'sqlite:///pastrami.db'
+  create_tables: true
+  echo: false
+
+contact_name: Average Joe
+contact_email: averagejoe@example.com
+contact_url: http://0.0.0.0:8080
+
+dayspan: 90
+maxlength: 50000
+
+enable_docs: false

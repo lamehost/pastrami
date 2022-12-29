@@ -106,7 +106,7 @@ SOFTWARE
 
 <body>
     {% if text %}
-    <pre class="prettyprint linenums:1">{{text["text"]}}</pre>
+    <pre class="prettyprint linenums:1">{{text["content"]}}</pre>
     {% else %}
     <div>
         <textarea class="form-control" id="paste" placeholder="[ paste text  -  ctrl+s to save ]" spellcheck="false"></textarea>
@@ -143,11 +143,11 @@ $(document).bind("keydown", function(event) {
         text = $("#paste").val();
         $.ajax({
                 method: "POST",
-                url: "/api/2.0/",
+                url: "/",
                 contentType: "application/json",
                 dataType: "json",
                 processData: false,
-                data: JSON.stringify({ text: text })
+                data: JSON.stringify({ content: text })
             })
             .done(function(data) {
                 window.location.href = data.text_id;

@@ -11,8 +11,8 @@
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -23,49 +23,39 @@
 # SOFTWARE
 
 
-import argparse
-
-from werkzeug.serving import run_simple
-
-from pastrami.webapp import create_app
+import os
+import uvicorn
 
 
-def main():
-    # Parse the arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "host",
-        metavar="HOST",
-        default="0.0.0.0",
-        nargs='?',
-        help="Hostname to bind to"
-    )
-    parser.add_argument(
-        "port",
-        metavar="PORT",
-        default="8080",
-        nargs='?',
-        type=int,
-        help="TCP port to bind to"
-    )
-    parser.add_argument(
-        "config_file",
-        metavar="FILE",
-        default="pastrami.conf",
-        nargs='?',
-        help="configuration filename (default: pastrami.conf)"
-    )
-    args = parser.parse_args()
+def main() -> None:
+    """
+    Main package function.
 
-    application = create_app(args.config_file)
-    debug = application.app.config['DEBUG']
-    run_simple(
-        args.host,
-        args.port,
-        application,
-        use_reloader=debug,
-        use_debugger=debug,
-        use_evalex=debug
+    Starts uvicorn and runs `pastrami.create_app()`
+    """
+
+    # Import config from ENV
+    host = os.getenv('pastrami_host', '0.0.0.0')
+    port = int(os.getenv('pastrami_port', '8080'))
+    debug = os.getenv('pastrami_uvicorn_debug', None) is not None
+
+    if debug:
+        reload = True
+        log_level = "debug"
+    else:
+        reload = False
+        log_level = "debug"
+
+    # Launch webapp through uvicorn
+    uvicorn.run(
+        "pastrami:create_app",
+        host=host,
+        port=port,
+        log_level=log_level,
+        reload=reload,
+        factory=True,
+        server_header=False,
+        proxy_headers=True
     )
 
 
