@@ -1,0 +1,22 @@
+# Database URL. Can be either sqlite or postresql (:memory: is not supported)
+database_url = sqlite:///pastrami.db
+# Whether create database at startup or not
+database_create = true
+# Whether echo SQL queries (debugging only)
+database_echo = false
+# Whether encrypt database content
+database_encryted = false
+
+# API contact name
+contact_name = Average Joe
+# API contact email address
+contact_email = averagejoe@example.com
+# API contact URL
+contact_url = http://0.0.0.0:8080
+
+# Enable API docs
+docs = false
+# Amount of days texts are retained
+dayspan: 90
+# Maximum amount of text characters
+maxlength: 50000
