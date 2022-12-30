@@ -217,7 +217,7 @@ def create_app(settings: dict = False):
         return {
             'text_id': text['text_id'],
             'content': text['content'],
-            'modified': text['modified']
+            'created': text['created']
         }
 
     @webapp.delete(

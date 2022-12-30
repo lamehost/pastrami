@@ -30,12 +30,14 @@
 
 import logging
 from urllib.parse import urlparse
-from typing import Union
+from typing import Union, Tuple
 import json
-import random
-from string import ascii_letters, digits
 from datetime import datetime, timedelta
+import hashlib
+from uuid import uuid4
+import base64
 
+from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import Column, DateTime, String
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.ext.declarative import declarative_base
@@ -54,26 +56,18 @@ LOGGER = logging.getLogger(__name__)
 BASE = declarative_base()
 
 
-def random_id(lenght=8):
-    return ''.join(
-        random.SystemRandom().choice(
-            ascii_letters + digits
-        ) for _ in range(lenght)
-    )
-
-
 class TextModel(BASE):
     __tablename__ = 'texts'
     text_id = Column(
         String,
         primary_key=True,
-        default=random_id
+        default=lambda: str(uuid4())
     )
     content = Column(
         String,
         nullable=False
     )
-    modified = Column(
+    created = Column(
         DateTime,
         default=datetime.utcnow,
         onupdate=datetime.utcnow
@@ -89,15 +83,15 @@ class TextSchema(BaseModel):
     """
     text_id: str = Field(
         description="Task identifier",
-        default_factory=random_id
+        default_factory=lambda: str(uuid4())
     )
 
     content: str = Field(
         description="Text content"
     )
 
-    modified: datetime = Field(
-        description="Last moment the text was modified",
+    created: datetime = Field(
+        description="Last moment the text was created",
         default_factory=datetime.utcnow
     )
 
@@ -224,6 +218,51 @@ class Database():
 
         self.session = make_session()
 
+    # Crypto methods
+    @staticmethod
+    def __encrypt_text_id(text_id: [str, bytes]) -> bytes:
+        if not isinstance(text_id, bytes):
+            text_id = text_id.encode('utf-8')
+        return hashlib.sha256(text_id).hexdigest()
+
+    def __encrypt(
+        self,
+        text_id: [str, bytes],
+        content: str
+    ) -> Tuple[str, bytes]:
+        if not isinstance(text_id, bytes):
+            text_id = text_id.encode('utf-8')
+
+        encrypted_text_id = self.__encrypt_text_id(text_id)
+
+        private_key = hashlib.md5(text_id).hexdigest()
+        private_key = private_key.encode('utf-8')
+        private_key = base64.b64encode(private_key)
+
+        ferret = Fernet(private_key)
+        token = ferret.encrypt(content.encode('utf-8'))
+        encrypted_content = base64.b64encode(token)
+
+        return (encrypted_text_id, encrypted_content)
+
+    def __decrypt(
+        self,
+        text_id: [str, bytes],
+        encrypted_content: bytes
+    ) -> str:
+        if not isinstance(text_id, bytes):
+            text_id = text_id.encode('utf-8')
+
+        private_key = hashlib.md5(text_id).hexdigest()
+        private_key = private_key.encode('utf-8')
+        private_key = base64.b64encode(private_key)
+
+        token = base64.b64decode(encrypted_content)
+
+        ferret = Fernet(private_key)
+        return ferret.decrypt(token).decode('utf-8')
+
+    # Text methods
     async def add_text(
         self,
         text: Union[TextSchema, dict]
@@ -242,10 +281,15 @@ class Database():
         """
         text = TextSchema.parse_obj(text).dict()
 
+        # Hide text_id with hashing
+        encrypted_text_id, text['content'] = self.__encrypt(
+            text['text_id'], text['content']
+        )
+
         db_object = TextModel(
-            text_id=str(text['text_id']),
+            text_id=str(encrypted_text_id),
             content=text['content'],
-            modified=text['modified']
+            created=text['created']
         )
 
         async with self.session as session:
@@ -285,23 +329,33 @@ class Database():
         --------
         None if no text was found, otherwise the `text` formatted as dict
         """
+
+        # text_id is hidden with hashing
+        encrypted_text_id = self.__encrypt_text_id(text_id)
+
         async with self.session as session:
             text = await session.run_sync(
                 lambda sync_session: sync_session.query(
                     TextModel
                 ).filter(
-                    TextModel.text_id == str(text_id)
+                    TextModel.text_id == str(encrypted_text_id)
                 ).first()
             )
 
         if text is None:
             return None
 
+        try:
+            content = self.__decrypt(text_id, text.content)
+        except InvalidToken:
+            LOGGER.debug("Unable to decrypt content. Text ID: %s", text_id)
+            return None
+
         return TextSchema.parse_obj(
             {
                 "text_id": str(text_id),
-                "content": text.content,
-                "modified": text.modified
+                "content": content,
+                "created": text.created
             }
         ).dict()
 
@@ -318,12 +372,15 @@ class Database():
         --------
         True if the text was deleted, otherwise False
         """
+        # text_id is hidden with hashing
+        encrypted_text_id = self.__encrypt_text_id(text_id)
+
         async with self.session as session:
             text = await session.run_sync(
                 lambda sync_session: sync_session.query(
                     TextModel
                 ).filter(
-                    TextModel.text_id == text_id
+                    TextModel.text_id == encrypted_text_id
                 ).first()
             )
 
@@ -367,7 +424,7 @@ class Database():
                 lambda sync_session: sync_session.query(
                     TextModel
                 ).filter(
-                    TextModel.modified < expire_date
+                    TextModel.created < expire_date
                 ).all()
             )
 

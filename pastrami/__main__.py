@@ -44,7 +44,7 @@ def main() -> None:
         log_level = "debug"
     else:
         reload = False
-        log_level = "debug"
+        log_level = "warning"
 
     # Launch webapp through uvicorn
     uvicorn.run(
