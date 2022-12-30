@@ -55,5 +55,5 @@ class Settings(BaseSettings):
         """
         env_file = 'pastrami.conf'
         env_prefix = 'pastrami_'
-        extra = Extra.forbid
+        extra = Extra.ignore
         env_nested_delimiter = '_'
