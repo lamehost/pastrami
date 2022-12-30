@@ -28,6 +28,10 @@
 #
 # pylint: disable=too-few-public-methods, no-name-in-module
 
+"""
+Database abstraction module for the package
+"""
+
 import logging
 from urllib.parse import urlparse
 from typing import Union, Tuple
@@ -57,6 +61,10 @@ BASE = declarative_base()
 
 
 class TextModel(BASE):
+    """
+    Describes database table specs
+    """
+
     __tablename__ = 'texts'
     text_id = Column(
         String,
@@ -115,9 +123,14 @@ class Database():
 
     Arguments:
     ----------
-    url: database url
-    echo: whether echo SQL queries or not
-    create_tables: whether create SQL tables or not
+    url: str
+        Database url
+    echo: bool
+        Whether echo SQL queries or not. Default: False
+    create: bool
+        Whether create SQL database and tables or not. Default: False
+    encrypted: bool
+        Whether encrypt data or not. Default: False
     session: Session object used to connect to the DB. By default a new one
              is created
     """
@@ -126,11 +139,14 @@ class Database():
         self,
         url: str,
         echo: bool = False,
-        create_tables: bool = False,
+        create: bool = False,
+        encrypted: bool = False,
         session: Union[bool, AsyncSession] = False,
     ) -> None:
+        self.__encrypted = encrypted
+
         parsed_url = urlparse(url)
-        self.__create_tables = create_tables
+        self.__create = create
         self.__engine_kwargs = {
             "echo": echo,
             "json_serializer": lambda obj: json.dumps(
@@ -196,7 +212,7 @@ class Database():
             engine = create_async_engine(self.url, **self.__engine_kwargs)
 
             # Create tables if requested
-            if self.__create_tables:
+            if self.__create:
                 try:
                     async with engine.begin() as connection:
                         await connection.run_sync(BASE.metadata.create_all)
@@ -220,16 +236,44 @@ class Database():
 
     # Crypto methods
     @staticmethod
-    def __encrypt_text_id(text_id: [str, bytes]) -> bytes:
+    def __encrypt_text_id(text_id: [str, bytes]) -> str:
+        """
+        Returns and encrypted version a Text identier.
+
+        Arguments:
+        ----------
+        text_id: str or bytes
+            Unencrypted text identier
+
+        Returns:
+        --------
+        str: encrypted Text identifier
+        """
         if not isinstance(text_id, bytes):
             text_id = text_id.encode('utf-8')
-        return hashlib.sha256(text_id).hexdigest()
+        return str(hashlib.sha256(text_id).hexdigest())
 
     def __encrypt(
         self,
         text_id: [str, bytes],
         content: str
     ) -> Tuple[str, bytes]:
+        """
+        Encrypts content using text_id as encryption key
+
+        Arguments:
+        ----------
+        text_id: str or bytes
+            Text ID used as encryption key
+        content: str
+            Content to be encrypted
+
+        Returns:
+        --------
+        Tuple:
+         - encrypted Text identifier
+         - encrypted content
+        """
         if not isinstance(text_id, bytes):
             text_id = text_id.encode('utf-8')
 
@@ -250,6 +294,20 @@ class Database():
         text_id: [str, bytes],
         encrypted_content: bytes
     ) -> str:
+        """
+        Decryptes content using text_id as decryption key
+
+        Arguments:
+        ----------
+        text_id: str or bytes
+            Text ID used as decryption key
+        encrypted_content: str
+            Content to be decrypted
+
+        Returns:
+        --------
+        str: decrypted content
+        """
         if not isinstance(text_id, bytes):
             text_id = text_id.encode('utf-8')
 
@@ -282,15 +340,13 @@ class Database():
         text = TextSchema.parse_obj(text).dict()
 
         # Hide text_id with hashing
-        encrypted_text_id, text['content'] = self.__encrypt(
-            text['text_id'], text['content']
-        )
+        original_text_id = text['text_id']
+        if self.__encrypted:
+            text['text_id'], text['content'] = self.__encrypt(
+                text['text_id'], text['content']
+            )
 
-        db_object = TextModel(
-            text_id=str(encrypted_text_id),
-            content=text['content'],
-            created=text['created']
-        )
+        db_object = TextModel(**text)
 
         async with self.session as session:
             async with session.begin():
@@ -306,16 +362,16 @@ class Database():
                     await session.rollback()
                     if "unique" in str(error.orig).lower().split(' '):
                         raise DuplicatedItemException(
-                            object_type='text', object_id=text['text_id']
+                            object_type='text', object_id=original_text_id
                         ) from error
 
         LOGGER.debug(
             'New text added to database %s: Text ID: %s',
-            text['text_id'],
-            text
+            text,
+            original_text_id
         )
 
-        return await self.get_text(str(text['text_id']))
+        return await self.get_text(original_text_id)
 
     async def get_text(self, text_id: str) -> Union[dict, None]:
         """
@@ -331,32 +387,38 @@ class Database():
         """
 
         # text_id is hidden with hashing
-        encrypted_text_id = self.__encrypt_text_id(text_id)
+        original_text_id = text_id
+        if self.__encrypted:
+            text_id = self.__encrypt_text_id(text_id)
 
         async with self.session as session:
             text = await session.run_sync(
                 lambda sync_session: sync_session.query(
                     TextModel
                 ).filter(
-                    TextModel.text_id == str(encrypted_text_id)
+                    TextModel.text_id == str(text_id)
                 ).first()
             )
 
         if text is None:
             return None
 
-        try:
-            content = self.__decrypt(text_id, text.content)
-        except InvalidToken:
-            LOGGER.debug("Unable to decrypt content. Text ID: %s", text_id)
-            return None
+        if self.__encrypted:
+            try:
+                content = self.__decrypt(original_text_id, text.content)
+            except InvalidToken:
+                LOGGER.debug(
+                    "Unable to decrypt content. Text ID: %s",
+                    original_text_id
+                )
+                return None
+        else:
+            content = text.content
 
-        return TextSchema.parse_obj(
-            {
-                "text_id": str(text_id),
-                "content": content,
-                "created": text.created
-            }
+        return TextSchema(
+            text_id=original_text_id,
+            content=content,
+            created=text.created
         ).dict()
 
     async def delete_text(self, text_id: str) -> bool:
@@ -373,14 +435,16 @@ class Database():
         True if the text was deleted, otherwise False
         """
         # text_id is hidden with hashing
-        encrypted_text_id = self.__encrypt_text_id(text_id)
+        original_text_id = text_id
+        if self.__encrypted:
+            text_id = self.__encrypt_text_id(text_id)
 
         async with self.session as session:
             text = await session.run_sync(
                 lambda sync_session: sync_session.query(
                     TextModel
                 ).filter(
-                    TextModel.text_id == encrypted_text_id
+                    TextModel.text_id == text_id
                 ).first()
             )
 
@@ -398,7 +462,7 @@ class Database():
 
         LOGGER.debug(
             'Text deleted from the database. Text ID: %s',
-            text_id
+            original_text_id
         )
 
         return True

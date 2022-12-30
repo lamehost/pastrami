@@ -21,8 +21,9 @@ class DatabaseSettings(BaseSettings, extra=Extra.forbid):
     Database specific settings
     """
     url: str = 'sqlite:///pastrami.db'
-    create_tables: bool = True
+    create: bool = True
     echo: bool = False
+    encrypted: bool = False
 
 
 class ContactSettings(BaseSettings, extra=Extra.forbid):
@@ -49,6 +50,9 @@ class Settings(BaseSettings):
     docs: bool = False
 
     class Config:
+        """
+        Pydantic's BaseSettings configuration statements
+        """
         env_file = 'pastrami.conf'
         env_prefix = 'pastrami_'
         extra = Extra.forbid
