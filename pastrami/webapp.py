@@ -35,7 +35,7 @@ API and web frontend for the application.
 
 
 import os
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -53,8 +53,8 @@ def create_app(settings: dict = False):
     """
     FastAPI app factory.
 
-    Parses configuration from `pastrami.cfg` and returns a FastAPI instance
-    that you can run via uvicorn.
+    Parses settings from `pastrami.cfg` and returns a FastAPI instance that you
+    can run via uvicorn.
 
     Parameters:
     ----------
@@ -62,6 +62,7 @@ def create_app(settings: dict = False):
         Path the API will be mounted on. (Default: '/api/')
     settings: dict
         App configuration settings. If False, get from configuration file.
+        If file doesn't exists, get from ENV.
         Default: False
 
     Returns:
@@ -129,12 +130,32 @@ def create_app(settings: dict = False):
         request: Request,
         text_id: Optional[str] = False,
         database: Database = Depends(Database(**settings['database']))
-    ):
+    ) -> Union[PlainTextResponse, HTMLResponse, templates.TemplateResponse]:
+        """
+        Web frontend.
+
+        Arguments:
+        ----------
+        request: Request
+            The HTTP request object
+        text_id: str
+            Text identifier. Default: False
+        database: Database
+            Database instance
+
+        Returns:
+        --------
+        Union[PlainTextResponse, HTMLResponse, templates.TemplateResponse]:
+            Web page
+        """
+        # Delete stale Texts
         await database.purge_expired(settings['dayspan'])
 
-        if text_id == "favicon.ico":
+        # Ignore common requests
+        if text_id in ["favicon.ico", "index.html", "index.php"]:
             return
 
+        # Render as text
         if text_id.lower().endswith('.txt'):
             text_id = text_id[:-4]
             text = await database.get_text(text_id)
@@ -148,6 +169,7 @@ def create_app(settings: dict = False):
                 content=text['content']
             )
 
+        # Render as markdown
         if text_id.lower().endswith('.md'):
             text_id = text_id[:-3]
             text = await database.get_text(text_id)
@@ -161,6 +183,7 @@ def create_app(settings: dict = False):
                 content=markdown.markdown(str(text['content']))
             )
 
+        # Default rendering
         if text_id:
             text = await database.get_text(text_id)
             if not text:
@@ -201,24 +224,21 @@ def create_app(settings: dict = False):
 
         Arguments:
         ----------
-        request: Request
-          The HTTP request object
         Text: TextSchema
-          The schema object
+            The schema object
+        database: Database
+            Database instance
 
         Returns:
         --------
         dict: Text Schema
         """
-
+        # Delete stale Texts
         await database.purge_expired(settings['dayspan'])
 
+        # Add Text
         text = await database.add_text(text)
-        return {
-            'text_id': text['text_id'],
-            'content': text['content'],
-            'created': text['created']
-        }
+        return TextSchema(**text)
 
     @webapp.delete(
         "/{text_id}",
@@ -241,7 +261,9 @@ def create_app(settings: dict = False):
         Arguments:
         ----------
         text_id: str
-          Text object ID
+            Text object ID
+        database: Database
+            Database instance
         """
 
         if not await database.delete_text(text_id):
