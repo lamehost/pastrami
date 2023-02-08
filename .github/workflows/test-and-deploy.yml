@@ -39,13 +39,13 @@ jobs:
         run: |
           poetry run pytest
 
-#   Deploy:
-# 
-#     needs: Test
-# 
-#     runs-on: ubuntu-latest
-# 
-#     steps:
-#       - uses: actions/checkout@v3
-#       - uses: superfly/flyctl-actions/setup-flyctl@master
-#       - run: flyctl deploy --remote-only
+  Deploy:
+
+    needs: Test
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy --remote-only
