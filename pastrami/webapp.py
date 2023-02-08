@@ -89,7 +89,7 @@ def create_app(settings: dict = False):
 
     # Add custom headers as recommended by
     # https://github.com/shieldfy/API-Security-Checklist#output
-    @webapp.middleware("http")
+    # @webapp.middleware("http")
     async def add_custom_headers(request: Request, call_next: Callable):
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -235,6 +235,12 @@ def create_app(settings: dict = False):
         """
         # Delete stale Texts
         await database.purge_expired(settings['dayspan'])
+
+        if len(text.content) >= settings['maxlength']:
+            raise HTTPException(
+                status_code=406,
+                detail=f"Text is longer than {settings['maxlength']} chars."
+            )
 
         # Add Text
         text = await database.add_text(text)
