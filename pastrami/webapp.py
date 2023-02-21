@@ -124,7 +124,8 @@ def create_app(settings: dict = False):
 
     @webapp.get(
         "/{text_id:path}",
-        tags=["Frontend"]
+        tags=["Frontend"],
+        response_model=None
     )
     async def index_html(
         request: Request,

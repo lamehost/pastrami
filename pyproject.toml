@@ -7,9 +7,9 @@ readme = "README.md"
 packages = [{include = "pastrami"}]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.11"
 uvicorn = "^0.16.0"
-fastapi = "^0.70.1"
+fastapi = ">=0.9.0"
 python-dotenv = "^0.19.2"
 email-validator = "^1.1.3"
 python-multipart = "^0.0.5"
