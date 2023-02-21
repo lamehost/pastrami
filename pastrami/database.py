@@ -161,7 +161,7 @@ class Database():
             self.url = f'postgresql+asyncpg://{parsed_url.netloc}'
         elif parsed_url.scheme.lower() == 'sqlite':
             if url.lower() == 'sqlite://:memory:':
-                self.url = 'sqlite+aiosqlite://?cache=shared'
+                self.url = 'sqlite+aiosqlite://'
             else:
                 self.url = f'sqlite+aiosqlite://{parsed_url.netloc}{parsed_url.path}'  # noqa
             # StaticPool is needed when SQLite is ran in memory
