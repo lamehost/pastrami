@@ -32,28 +32,23 @@
 Database abstraction module for the package
 """
 
-import logging
-from urllib.parse import urlparse
-from typing import Union, Tuple
-import json
-from datetime import datetime, timedelta
-import hashlib
-from uuid import uuid4
 import base64
+import hashlib
+import json
+import logging
+from datetime import datetime, timedelta
+from typing import Tuple, Union
+from urllib.parse import urlparse
+from uuid import uuid4
 
 from cryptography.fernet import Fernet, InvalidToken
+from pydantic import BaseModel, Field
 from sqlalchemy import Column, DateTime, String
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.exc import DataError, IntegrityError, OperationalError, SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.exc import (
-    SQLAlchemyError,
-    IntegrityError,
-    DataError,
-    OperationalError
-)
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-from pydantic import BaseModel, Field
 
 LOGGER = logging.getLogger(__name__)
 
@@ -65,21 +60,10 @@ class TextModel(BASE):
     Describes database table specs
     """
 
-    __tablename__ = 'texts'
-    text_id = Column(
-        String,
-        primary_key=True,
-        default=lambda: str(uuid4())
-    )
-    content = Column(
-        String,
-        nullable=False
-    )
-    created = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
+    __tablename__ = "texts"
+    text_id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    content = Column(String, nullable=False)
+    created = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self):
         return str(self.content)
@@ -89,18 +73,13 @@ class TextSchema(BaseModel):
     """
     Defines the model to describe a Text
     """
-    text_id: str = Field(
-        description="Task identifier",
-        default_factory=lambda: str(uuid4())
-    )
 
-    content: str = Field(
-        description="Text content"
-    )
+    text_id: str = Field(description="Task identifier", default_factory=lambda: str(uuid4()))
+
+    content: str = Field(description="Text content")
 
     created: datetime = Field(
-        description="Last moment the text was created",
-        default_factory=datetime.utcnow
+        description="Last moment the text was created", default_factory=datetime.utcnow
     )
 
 
@@ -108,6 +87,7 @@ class DuplicatedItemException(Exception):
     """
     Raised when a duplicated item is created
     """
+
     def __init__(self, object_type: str, object_id: str) -> None:
         self.object_id = object_id
         self.object_type = object_type
@@ -116,7 +96,7 @@ class DuplicatedItemException(Exception):
         )
 
 
-class Database():
+class Database:
     """
     SQL database abstraction class. Allows users to create, read and delete
     Texts
@@ -135,7 +115,7 @@ class Database():
              is created
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         url: str,
         echo: bool = False,
@@ -149,38 +129,32 @@ class Database():
         self.__create = create
         self.__engine_kwargs = {
             "echo": echo,
-            "json_serializer": lambda obj: json.dumps(
-                obj,
-                ensure_ascii=False,
-                default=str
-            )
+            "json_serializer": lambda obj: json.dumps(obj, ensure_ascii=False, default=str),
         }
         # We only need SQLite for unittest, but we're going to make it a
         # first class citizen anyway
-        if parsed_url.scheme.lower() == 'postgresql':
-            self.url = f'postgresql+asyncpg://{parsed_url.netloc}'
-        elif parsed_url.scheme.lower() == 'sqlite':
-            if url.lower() == 'sqlite://:memory:':
-                self.url = 'sqlite+aiosqlite://'
+        if parsed_url.scheme.lower() == "postgresql":
+            self.url = f"postgresql+asyncpg://{parsed_url.netloc}"
+        elif parsed_url.scheme.lower() == "sqlite":
+            if url.lower() == "sqlite://:memory:":
+                self.url = "sqlite+aiosqlite://"
             else:
-                self.url = f'sqlite+aiosqlite://{parsed_url.netloc}{parsed_url.path}'  # noqa
+                self.url = f"sqlite+aiosqlite://{parsed_url.netloc}{parsed_url.path}"  # noqa
             # StaticPool is needed when SQLite is ran in memory
-            self.__engine_kwargs['poolclass'] = StaticPool
-            self.__engine_kwargs['connect_args'] = {"check_same_thread": False}
+            self.__engine_kwargs["poolclass"] = StaticPool
+            self.__engine_kwargs["connect_args"] = {"check_same_thread": False}
         else:
-            error = (
-                f'Database can be either "sqlite" or "postgresql", not: "{parsed_url.scheme}"'   # pylint: disable=line-too-long   # noqa
-            )
+            error = f'Database can be either "sqlite" or "postgresql", not: "{parsed_url.scheme}"'  # pylint: disable=line-too-long   # noqa
             # LOGGER.error(error)
             raise ValueError(error)
 
         if session and isinstance(session, bool):
-            raise ValueError('Session can be either false or AsyncSession')
+            raise ValueError("Session can be either false or AsyncSession")
         self.session = session
 
     async def __call__(self):
         if not self.session:
-            LOGGER.info('Connecting to database')
+            LOGGER.info("Connecting to database")
             await self.connect()
 
         yield self
@@ -216,16 +190,13 @@ class Database():
                 try:
                     async with engine.begin() as connection:
                         await connection.run_sync(BASE.metadata.create_all)
-                    LOGGER.info('Connected to database')
+                    LOGGER.info("Connected to database")
                 except OperationalError as error:
                     LOGGER.error(error)
                     raise RuntimeError(error) from error
 
             make_session = sessionmaker(
-                autocommit=False,
-                autoflush=False,
-                bind=engine,
-                class_=AsyncSession
+                autocommit=False, autoflush=False, bind=engine, class_=AsyncSession
             )
 
         except SQLAlchemyError as error:
@@ -250,14 +221,10 @@ class Database():
         str: encrypted Text identifier
         """
         if not isinstance(text_id, bytes):
-            text_id = text_id.encode('utf-8')
+            text_id = text_id.encode("utf-8")
         return str(hashlib.sha256(text_id).hexdigest())
 
-    def __encrypt(
-        self,
-        text_id: [str, bytes],
-        content: str
-    ) -> Tuple[str, bytes]:
+    def __encrypt(self, text_id: [str, bytes], content: str) -> Tuple[str, bytes]:
         """
         Encrypts content using text_id as encryption key
 
@@ -275,25 +242,21 @@ class Database():
          - encrypted content
         """
         if not isinstance(text_id, bytes):
-            text_id = text_id.encode('utf-8')
+            text_id = text_id.encode("utf-8")
 
         encrypted_text_id = self.__encrypt_text_id(text_id)
 
         private_key = hashlib.md5(text_id).hexdigest()
-        private_key = private_key.encode('utf-8')
+        private_key = private_key.encode("utf-8")
         private_key = base64.b64encode(private_key)
 
         ferret = Fernet(private_key)
-        token = ferret.encrypt(content.encode('utf-8'))
+        token = ferret.encrypt(content.encode("utf-8"))
         encrypted_content = base64.b64encode(token)
 
         return (encrypted_text_id, encrypted_content)
 
-    def __decrypt(
-        self,
-        text_id: [str, bytes],
-        encrypted_content: bytes
-    ) -> str:
+    def __decrypt(self, text_id: [str, bytes], encrypted_content: bytes) -> str:
         """
         Decryptes content using text_id as decryption key
 
@@ -309,22 +272,19 @@ class Database():
         str: decrypted content
         """
         if not isinstance(text_id, bytes):
-            text_id = text_id.encode('utf-8')
+            text_id = text_id.encode("utf-8")
 
         private_key = hashlib.md5(text_id).hexdigest()
-        private_key = private_key.encode('utf-8')
+        private_key = private_key.encode("utf-8")
         private_key = base64.b64encode(private_key)
 
         token = base64.b64decode(encrypted_content)
 
         ferret = Fernet(private_key)
-        return ferret.decrypt(token).decode('utf-8')
+        return ferret.decrypt(token).decode("utf-8")
 
     # Text methods
-    async def add_text(
-        self,
-        text: Union[TextSchema, dict]
-    ) -> dict:
+    async def add_text(self, text: Union[TextSchema, dict]) -> dict:
         """
         Adds text to database
 
@@ -340,11 +300,9 @@ class Database():
         text = TextSchema.parse_obj(text).dict()
 
         # Hide text_id with hashing
-        original_text_id = text['text_id']
+        original_text_id = text["text_id"]
         if self.__encrypted:
-            text['text_id'], text['content'] = self.__encrypt(
-                text['text_id'], text['content']
-            )
+            text["text_id"], text["content"] = self.__encrypt(text["text_id"], text["content"])
 
         db_object = TextModel(**text)
 
@@ -360,16 +318,12 @@ class Database():
                     raise RuntimeError(error) from error
                 except IntegrityError as error:
                     await session.rollback()
-                    if "unique" in str(error.orig).lower().split(' '):
+                    if "unique" in str(error.orig).lower().split(" "):
                         raise DuplicatedItemException(
-                            object_type='text', object_id=original_text_id
+                            object_type="text", object_id=original_text_id
                         ) from error
 
-        LOGGER.debug(
-            'New text added to database %s: Text ID: %s',
-            text,
-            original_text_id
-        )
+        LOGGER.debug("New text added to database %s: Text ID: %s", text, original_text_id)
 
         return await self.get_text(original_text_id)
 
@@ -393,11 +347,9 @@ class Database():
 
         async with self.session as session:
             text = await session.run_sync(
-                lambda sync_session: sync_session.query(
-                    TextModel
-                ).filter(
-                    TextModel.text_id == str(text_id)
-                ).first()
+                lambda sync_session: sync_session.query(TextModel)
+                .filter(TextModel.text_id == str(text_id))
+                .first()
             )
 
         if text is None:
@@ -407,19 +359,12 @@ class Database():
             try:
                 content = self.__decrypt(original_text_id, text.content)
             except InvalidToken:
-                LOGGER.debug(
-                    "Unable to decrypt content. Text ID: %s",
-                    original_text_id
-                )
+                LOGGER.debug("Unable to decrypt content. Text ID: %s", original_text_id)
                 return None
         else:
             content = text.content
 
-        return TextSchema(
-            text_id=original_text_id,
-            content=content,
-            created=text.created
-        ).dict()
+        return TextSchema(text_id=original_text_id, content=content, created=text.created).dict()
 
     async def delete_text(self, text_id: str) -> bool:
         """
@@ -441,11 +386,9 @@ class Database():
 
         async with self.session as session:
             text = await session.run_sync(
-                lambda sync_session: sync_session.query(
-                    TextModel
-                ).filter(
-                    TextModel.text_id == text_id
-                ).first()
+                lambda sync_session: sync_session.query(TextModel)
+                .filter(TextModel.text_id == text_id)
+                .first()
             )
 
         if not text:
@@ -460,10 +403,7 @@ class Database():
                     await session.rollback()
                     raise RuntimeError(error) from error
 
-        LOGGER.debug(
-            'Text deleted from the database. Text ID: %s',
-            original_text_id
-        )
+        LOGGER.debug("Text deleted from the database. Text ID: %s", original_text_id)
 
         return True
 
@@ -485,11 +425,9 @@ class Database():
 
         async with self.session as session:
             texts = await session.run_sync(
-                lambda sync_session: sync_session.query(
-                    TextModel
-                ).filter(
-                    TextModel.created < expire_date
-                ).all()
+                lambda sync_session: sync_session.query(TextModel)
+                .filter(TextModel.created < expire_date)
+                .all()
             )
 
         if not texts:
@@ -505,9 +443,6 @@ class Database():
                     await session.rollback()
                     raise RuntimeError(error) from error
 
-        LOGGER.debug(
-            'Expired text deleted from the database (%d)',
-            len(texts)
-        )
+        LOGGER.debug("Expired text deleted from the database (%d)", len(texts))
 
         return len(texts)

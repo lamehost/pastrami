@@ -37,12 +37,11 @@ API and web frontend for the application.
 import os
 from typing import Callable, Optional, Union
 
-from fastapi import FastAPI, Request, Depends, HTTPException
+import markdown
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, PlainTextResponse
-
-import markdown
 
 from pastrami.__about__ import __version__ as VERSION
 from pastrami.database import Database, TextSchema
@@ -74,31 +73,30 @@ def create_app(settings: dict = False):
         settings = Settings().dict()
 
     # Create root webapp
-    docs_url = '/docs' if settings['docs'] else False
+    docs_url = "/docs" if settings["docs"] else False
     webapp = FastAPI(
         docs_url=docs_url,
         contact={
-            "name": settings['contact']['name'],
-            "url": settings['contact']['url'],
-            "email": settings['contact']['email']
+            "name": settings["contact"]["name"],
+            "url": settings["contact"]["url"],
+            "email": settings["contact"]["email"],
         },
         title="Pastrami",
         description="Pastebin web service",
-        version=VERSION
+        version=VERSION,
     )
 
     # Add custom headers as recommended by
     # https://github.com/shieldfy/API-Security-Checklist#output
-    # @webapp.middleware("http")
+    @webapp.middleware("http")
     async def add_custom_headers(request: Request, call_next: Callable):
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "deny"
         # Force restrictive content-security-policy for JSON content
         try:
-            if response.headers['content-type'] == 'application/json':
-                response.headers["Content-Security-Policy"] = \
-                    "default-src 'none'"
+            if response.headers["content-type"] == "application/json":
+                response.headers["Content-Security-Policy"] = "default-src 'none'"
         except KeyError:
             pass
         return response
@@ -106,31 +104,17 @@ def create_app(settings: dict = False):
     app_directory = os.path.dirname(os.path.realpath(__file__))
 
     # Static files
-    static_directory = os.path.join(
-        app_directory, 'static'
-    )
-    webapp.mount(
-        "/static",
-        StaticFiles(directory=static_directory, html=True),
-        name="static"
-    )
+    static_directory = os.path.join(app_directory, "static")
+    webapp.mount("/static", StaticFiles(directory=static_directory, html=True), name="static")
 
     # Default web page
-    templates = Jinja2Templates(
-        directory=os.path.join(
-            app_directory, 'templates'
-        )
-    )
+    templates = Jinja2Templates(directory=os.path.join(app_directory, "templates"))
 
-    @webapp.get(
-        "/{text_id:path}",
-        tags=["Frontend"],
-        response_model=None
-    )
+    @webapp.get("/{text_id:path}", tags=["Frontend"], response_model=None)
     async def index_html(
         request: Request,
         text_id: Optional[str] = False,
-        database: Database = Depends(Database(**settings['database']))
+        database: Database = Depends(Database(**settings["database"])),
     ) -> Union[PlainTextResponse, HTMLResponse, templates.TemplateResponse]:
         """
         Web frontend.
@@ -150,58 +134,40 @@ def create_app(settings: dict = False):
             Web page
         """
         # Delete stale Texts
-        await database.purge_expired(settings['dayspan'])
+        await database.purge_expired(settings["dayspan"])
 
         # Ignore common requests
         if text_id in ["favicon.ico", "index.html", "index.php"]:
             return
 
         # Render as text
-        if text_id.lower().endswith('.txt'):
+        if text_id.lower().endswith(".txt"):
             text_id = text_id[:-4]
             text = await database.get_text(text_id)
             if not text:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Unable to find text: {text_id}"
-                )
+                raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
 
-            return PlainTextResponse(
-                content=text['content']
-            )
+            return PlainTextResponse(content=text["content"])
 
         # Render as markdown
-        if text_id.lower().endswith('.md'):
+        if text_id.lower().endswith(".md"):
             text_id = text_id[:-3]
             text = await database.get_text(text_id)
             if not text:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Unable to find text: {text_id}"
-                )
+                raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
 
-            return HTMLResponse(
-                content=markdown.markdown(str(text['content']))
-            )
+            return HTMLResponse(content=markdown.markdown(str(text["content"])))
 
         # Default rendering
         if text_id:
             text = await database.get_text(text_id)
             if not text:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Unable to find text: {text_id}"
-                )
+                raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
         else:
             text = False
 
         return templates.TemplateResponse(
-            "index.html",
-            {
-                "request": request,
-                'maxlength': settings['maxlength'],
-                'text': text
-            }
+            "index.html", {"request": request, "maxlength": settings["maxlength"], "text": text}
         )
 
     # API
@@ -211,14 +177,13 @@ def create_app(settings: dict = False):
         responses={
             200: {"description": "Success"},
             400: {"description": "Bad request"},
-            503: {"description": "Transient error"}
+            503: {"description": "Transient error"},
         },
         description="Create a nex Text",
-        tags=["API"]
+        tags=["API"],
     )
     async def add_text(
-        text: TextSchema,
-        database: Database = Depends(Database(**settings['database']))
+        text: TextSchema, database: Database = Depends(Database(**settings["database"]))
     ) -> dict:
         """
         Create Text.
@@ -235,12 +200,11 @@ def create_app(settings: dict = False):
         dict: Text Schema
         """
         # Delete stale Texts
-        await database.purge_expired(settings['dayspan'])
+        await database.purge_expired(settings["dayspan"])
 
-        if len(text.content) >= settings['maxlength']:
+        if len(text.content) >= settings["maxlength"]:
             raise HTTPException(
-                status_code=406,
-                detail=f"Text is longer than {settings['maxlength']} chars."
+                status_code=406, detail=f"Text is longer than {settings['maxlength']} chars."
             )
 
         # Add Text
@@ -253,14 +217,13 @@ def create_app(settings: dict = False):
         responses={
             204: {"description": "Success"},
             404: {"description": "Not found"},
-            503: {"description": "Transient error"}
+            503: {"description": "Transient error"},
         },
         description="Deletes an existing Text from database",
-        tags=["API"]
+        tags=["API"],
     )
     async def delete_text(
-        text_id: str,
-        database: Database = Depends(Database(**settings['database']))
+        text_id: str, database: Database = Depends(Database(**settings["database"]))
     ) -> None:
         """
         Delete Text.
@@ -274,9 +237,6 @@ def create_app(settings: dict = False):
         """
 
         if not await database.delete_text(text_id):
-            raise HTTPException(
-                status_code=404,
-                detail=f"Unable to find text: {text_id}"
-            )
+            raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
 
     return webapp

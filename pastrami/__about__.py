@@ -24,17 +24,17 @@
 Information describing the package
 """
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 __author__ = "Marco Marzetti"
 __author_email__ = "marco@lamehost.it"
 __url__ = "https://github.com/lamehost/anastasia/"
 __description__ = "Pastebin web service."
 __license__ = "MIT"
 __classifiers__ = [
-    'Intended Audience :: Developers',
-    'Topic :: Software Development :: Libraries :: Python Modules',
-    'License :: OSI Approved :: MIT License',
-    'Programming Language :: Python :: 3.9',
-    'Programming Language :: Python :: 3.10',
-    'Programming Language :: Python :: 3.11'
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
 ]

@@ -26,10 +26,7 @@
 Pastebin web service.
 """
 
-from .webapp import create_app
 from .database import TextSchema
+from .webapp import create_app
 
-__all__ = [
-    'create_app',
-    'TextSchema'
-]
+__all__ = ["create_app", "TextSchema"]

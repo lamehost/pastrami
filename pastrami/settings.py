@@ -8,19 +8,15 @@ This module provides data models and methods to read the settings file
 #
 # pylint: disable=too-few-public-methods, no-name-in-module
 
-from pydantic import (
-    HttpUrl,
-    BaseSettings,
-    EmailStr,
-    Extra
-)
+from pydantic import BaseSettings, EmailStr, Extra, HttpUrl
 
 
 class DatabaseSettings(BaseSettings, extra=Extra.forbid):
     """
     Database specific settings
     """
-    url: str = 'sqlite:///pastrami.db'
+
+    url: str = "sqlite:///pastrami.db"
     create: bool = True
     echo: bool = False
     encrypted: bool = False
@@ -30,6 +26,7 @@ class ContactSettings(BaseSettings, extra=Extra.forbid):
     """
     Contact specific settings
     """
+
     name: str
     url: HttpUrl
     email: EmailStr
@@ -39,6 +36,7 @@ class Settings(BaseSettings):
     """
     Settings passed to the AWSGI application
     """
+
     database: DatabaseSettings
     contact: ContactSettings
 
@@ -53,7 +51,8 @@ class Settings(BaseSettings):
         """
         Pydantic's BaseSettings configuration statements
         """
-        env_file = 'pastrami.conf'
-        env_prefix = 'pastrami_'
+
+        env_file = "pastrami.conf"
+        env_prefix = "pastrami_"
         extra = Extra.ignore
-        env_nested_delimiter = '_'
+        env_nested_delimiter = "_"

@@ -27,6 +27,7 @@ Main entrypoint for the package
 """
 
 import os
+
 import uvicorn
 
 
@@ -38,9 +39,9 @@ def main() -> None:
     """
 
     # Import config from ENV
-    host = os.getenv('pastrami_host', '0.0.0.0')
-    port = int(os.getenv('pastrami_port', '8080'))
-    debug = os.getenv('pastrami_uvicorn_debug', None) is not None
+    host = os.getenv("pastrami_host", "0.0.0.0")
+    port = int(os.getenv("pastrami_port", "8080"))
+    debug = os.getenv("pastrami_uvicorn_debug", None) is not None
 
     if debug:
         reload = True
@@ -58,7 +59,7 @@ def main() -> None:
         reload=reload,
         factory=True,
         server_header=False,
-        proxy_headers=True
+        proxy_headers=True,
     )
 
 
