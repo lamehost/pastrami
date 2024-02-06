@@ -42,6 +42,8 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 from cryptography.fernet import Fernet, InvalidToken
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, DateTime, String
 from sqlalchemy.exc import DataError, IntegrityError, OperationalError, SQLAlchemyError
@@ -64,6 +66,18 @@ class TextModel(BASE):
     text_id = Column(String, primary_key=True, default=lambda: str(uuid4()))
     content = Column(String, nullable=False)
     created = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return str(self.content)
+
+
+class SaltModel(BASE):
+    """
+    Describes database table specs
+    """
+
+    __tablename__ = "salt"
+    text = Column(String, primary_key=True, default=lambda: str(uuid4()))
 
     def __repr__(self):
         return str(self.content)
@@ -246,12 +260,20 @@ class Database:
 
         encrypted_text_id = self.__encrypt_text_id(text_id)
 
-        private_key = hashlib.md5(text_id).hexdigest()
-        private_key = private_key.encode("utf-8")
-        private_key = base64.b64encode(private_key)
+        # private_key = hashlib.md5(text_id).hexdigest()
+        # private_key = private_key.encode("utf-8")
+        # private_key = base64.b64encode(private_key)
 
-        ferret = Fernet(private_key)
-        token = ferret.encrypt(content.encode("utf-8"))
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt="".encode("utf-8"),
+            iterations=480000,
+        )
+        private_key = base64.urlsafe_b64encode(kdf.derive(text_id))
+
+        fernet = Fernet(private_key)
+        token = fernet.encrypt(content.encode("utf-8"))
         encrypted_content = base64.b64encode(token)
 
         return (encrypted_text_id, encrypted_content)
@@ -274,14 +296,22 @@ class Database:
         if not isinstance(text_id, bytes):
             text_id = text_id.encode("utf-8")
 
-        private_key = hashlib.md5(text_id).hexdigest()
-        private_key = private_key.encode("utf-8")
-        private_key = base64.b64encode(private_key)
+        # private_key = hashlib.md5(text_id).hexdigest()
+        # private_key = private_key.encode("utf-8")
+        # private_key = base64.b64encode(private_key)
+
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt="".encode("utf-8"),
+            iterations=480000,
+        )
+        private_key = base64.urlsafe_b64encode(kdf.derive(text_id))
 
         token = base64.b64decode(encrypted_content)
 
-        ferret = Fernet(private_key)
-        return ferret.decrypt(token).decode("utf-8")
+        fernet = Fernet(private_key)
+        return fernet.decrypt(token).decode("utf-8")
 
     # Text methods
     async def add_text(self, text: Union[TextSchema, dict]) -> dict:
