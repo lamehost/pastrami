@@ -52,7 +52,7 @@ def create_app(settings: dict = False):
     """
     FastAPI app factory.
 
-    Parses settings from `pastrami.cfg` and returns a FastAPI instance that you
+    Parses settings from `pastrami.conf` and returns a FastAPI instance that you
     can run via uvicorn.
 
     Parameters:
