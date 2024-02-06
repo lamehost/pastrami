@@ -59,7 +59,7 @@ BASE = declarative_base()
 
 class TextModel(BASE):
     """
-    Describes database table specs
+    Describes database table `texts`
     """
 
     __tablename__ = "texts"
@@ -73,11 +73,11 @@ class TextModel(BASE):
 
 class SaltModel(BASE):
     """
-    Describes database table specs
+    Describes database table `salt`
     """
 
     __tablename__ = "salt"
-    text = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    salt = Column(String, primary_key=True)
 
     def __repr__(self):
         return str(self.content)
@@ -212,7 +212,6 @@ class Database:
             make_session = sessionmaker(
                 autocommit=False, autoflush=False, bind=engine, class_=AsyncSession
             )
-
         except SQLAlchemyError as error:
             LOGGER.error(error)
             raise error from error
@@ -221,7 +220,7 @@ class Database:
 
     # Crypto methods
     @staticmethod
-    def __encrypt_text_id(text_id: [str, bytes]) -> str:
+    async def __encrypt_text_id(text_id: [str, bytes]) -> str:
         """
         Returns and encrypted version a Text identier.
 
@@ -238,7 +237,7 @@ class Database:
             text_id = text_id.encode("utf-8")
         return str(hashlib.sha256(text_id).hexdigest())
 
-    def __encrypt(self, text_id: [str, bytes], content: str) -> Tuple[str, bytes]:
+    async def __encrypt(self, text_id: [str, bytes], content: str) -> Tuple[str, bytes]:
         """
         Encrypts content using text_id as encryption key
 
@@ -258,16 +257,13 @@ class Database:
         if not isinstance(text_id, bytes):
             text_id = text_id.encode("utf-8")
 
-        encrypted_text_id = self.__encrypt_text_id(text_id)
+        encrypted_text_id = await self.__encrypt_text_id(text_id)
 
-        # private_key = hashlib.md5(text_id).hexdigest()
-        # private_key = private_key.encode("utf-8")
-        # private_key = base64.b64encode(private_key)
-
+        salt = await self.get_salt()
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
-            salt="".encode("utf-8"),
+            salt=salt.encode("utf-8"),
             iterations=480000,
         )
         private_key = base64.urlsafe_b64encode(kdf.derive(text_id))
@@ -278,9 +274,9 @@ class Database:
 
         return (encrypted_text_id, encrypted_content)
 
-    def __decrypt(self, text_id: [str, bytes], encrypted_content: bytes) -> str:
+    async def __decrypt(self, text_id: [str, bytes], encrypted_content: bytes) -> str:
         """
-        Decryptes content using text_id as decryption key
+        Decrypts content using text_id as decryption key
 
         Arguments:
         ----------
@@ -296,14 +292,11 @@ class Database:
         if not isinstance(text_id, bytes):
             text_id = text_id.encode("utf-8")
 
-        # private_key = hashlib.md5(text_id).hexdigest()
-        # private_key = private_key.encode("utf-8")
-        # private_key = base64.b64encode(private_key)
-
+        salt = await self.get_salt()
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
-            salt="".encode("utf-8"),
+            salt=salt.encode("utf-8"),
             iterations=480000,
         )
         private_key = base64.urlsafe_b64encode(kdf.derive(text_id))
@@ -312,6 +305,38 @@ class Database:
 
         fernet = Fernet(private_key)
         return fernet.decrypt(token).decode("utf-8")
+
+    # Salt methods
+    async def get_salt(self) -> str:
+        """
+        Gets salt from database. If salt is missing, it creates it
+
+        Returns:
+        --------
+        str: salt
+        """
+        # Get salt from database
+        async with self.session as session:
+            db_object = await session.run_sync(
+                lambda sync_session: sync_session.query(SaltModel).first()
+            )
+
+        if db_object is not None:
+            return db_object.salt
+
+        # Generate salt if missing
+        async with self.session as session:
+            salt = str(uuid4())
+            async with session.begin():
+                session.add(SaltModel(salt=salt))
+
+                try:
+                    await session.commit()
+                except (DataError, OperationalError) as error:
+                    await session.rollback()
+                    raise RuntimeError(error) from error
+
+        return salt
 
     # Text methods
     async def add_text(self, text: Union[TextSchema, dict]) -> dict:
@@ -332,7 +357,9 @@ class Database:
         # Hide text_id with hashing
         original_text_id = text["text_id"]
         if self.__encrypted:
-            text["text_id"], text["content"] = self.__encrypt(text["text_id"], text["content"])
+            text["text_id"], text["content"] = await self.__encrypt(
+                text["text_id"], text["content"]
+            )
 
         db_object = TextModel(**text)
 
@@ -373,7 +400,7 @@ class Database:
         # text_id is hidden with hashing
         original_text_id = text_id
         if self.__encrypted:
-            text_id = self.__encrypt_text_id(text_id)
+            text_id = await self.__encrypt_text_id(text_id)
 
         async with self.session as session:
             text = await session.run_sync(
@@ -387,7 +414,7 @@ class Database:
 
         if self.__encrypted:
             try:
-                content = self.__decrypt(original_text_id, text.content)
+                content = await self.__decrypt(original_text_id, text.content)
             except InvalidToken:
                 LOGGER.debug("Unable to decrypt content. Text ID: %s", original_text_id)
                 return None
@@ -412,7 +439,7 @@ class Database:
         # text_id is hidden with hashing
         original_text_id = text_id
         if self.__encrypted:
-            text_id = self.__encrypt_text_id(text_id)
+            text_id = await self.__encrypt_text_id(text_id)
 
         async with self.session as session:
             text = await session.run_sync(
