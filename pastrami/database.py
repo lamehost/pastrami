@@ -36,6 +36,7 @@ import base64
 import hashlib
 import json
 import logging
+import sqlite3
 from datetime import datetime, timedelta
 from typing import Tuple, Union
 from urllib.parse import urlparse
@@ -157,8 +158,12 @@ class Database:
             # StaticPool is needed when SQLite is ran in memory
             self.__engine_kwargs["poolclass"] = StaticPool
             self.__engine_kwargs["connect_args"] = {"check_same_thread": False}
+            # Enforce shared cache
+            self.__engine_kwargs["creator"] = lambda: sqlite3.connect(
+                "file::memory:?cache=shared", uri=True
+            )
         else:
-            error = f'Database can be either "sqlite" or "postgresql", not: "{parsed_url.scheme}"'  # pylint: disable=line-too-long   # noqa
+            error = f'Database can be either "sqlite" or "postgresql", not: "{parsed_url.scheme}"'
             # LOGGER.error(error)
             raise ValueError(error)
 
