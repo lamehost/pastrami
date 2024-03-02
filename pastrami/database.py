@@ -153,15 +153,15 @@ class Database:
         elif parsed_url.scheme.lower() == "sqlite":
             if url.lower() == "sqlite://:memory:":
                 self.url = "sqlite+aiosqlite://"
+                # Enforce shared cache
+                self.__engine_kwargs["creator"] = lambda: sqlite3.connect(
+                    "file::memory:?cache=shared", uri=True
+                )
             else:
                 self.url = f"sqlite+aiosqlite://{parsed_url.netloc}{parsed_url.path}"  # noqa
             # StaticPool is needed when SQLite is ran in memory
             self.__engine_kwargs["poolclass"] = StaticPool
             self.__engine_kwargs["connect_args"] = {"check_same_thread": False}
-            # Enforce shared cache
-            self.__engine_kwargs["creator"] = lambda: sqlite3.connect(
-                "file::memory:?cache=shared", uri=True
-            )
         else:
             error = f'Database can be either "sqlite" or "postgresql", not: "{parsed_url.scheme}"'
             # LOGGER.error(error)
