@@ -9,7 +9,7 @@ processes = []
   pastrami_contact_email = "marco@lamehost.it"
   pastrami_contact_name = "Marco Marzetti"
   pastrami_contact_url = "https://www.lamehost.it"
-  pastrami_database_url = "sqlite:///:memory:"
+  pastrami_database_url = "sqlite:///pastrami.db"
   pastrami_database_encrypted = true
   pastrami_maxlength = 50000
 
