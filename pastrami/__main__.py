@@ -26,7 +26,7 @@
 Main entrypoint for the package
 """
 
-import os
+import argparse
 
 import uvicorn
 
@@ -38,12 +38,34 @@ def main() -> None:
     Starts uvicorn and runs `pastrami.create_app()`
     """
 
-    # Import config from ENV
-    host = os.getenv("pastrami_host", "0.0.0.0")
-    port = int(os.getenv("pastrami_port", "8080"))
-    debug = os.getenv("pastrami_uvicorn_debug", None) is not None
+    # Parse CLI arguments
+    parser = argparse.ArgumentParser(
+        prog="pastrami",
+        description="Secure pastebin web service.",
+        epilog="Configuration file name is hardcoded: pastrami.conf",
+    )
+    parser.add_argument(
+        "-d", "--debug", action="store_true", default=False, help="Turns uviconr debugging on"
+    )
+    parser.add_argument(
+        "host",
+        nargs="?",
+        type=str,
+        default="127.0.0.1",
+        help="Host to bind to. Default: 127.0.0.1",
+        metavar="HOST",
+    )
+    parser.add_argument(
+        "port",
+        nargs="?",
+        type=int,
+        default=8080,
+        help="Port to bind to. Default: 8080",
+        metavar="PORT",
+    )
+    args = parser.parse_args()
 
-    if debug:
+    if args.debug:
         reload = True
         log_level = "debug"
     else:
@@ -53,8 +75,8 @@ def main() -> None:
     # Launch webapp through uvicorn
     uvicorn.run(
         "pastrami:create_app",
-        host=host,
-        port=port,
+        host=args.host,
+        port=args.port,
         log_level=log_level,
         reload=reload,
         factory=True,

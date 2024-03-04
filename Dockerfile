@@ -13,6 +13,6 @@ RUN poetry config virtualenvs.create false \
   && poetry install --no-interaction --no-ansi
 
 # Run script
-ENTRYPOINT [ "python3", "-m", "pastrami" ]
+ENTRYPOINT [ "python3", "-m", "pastrami", "0.0.0.0"]
 
 HEALTHCHECK CMD curl --fail http://localhost:8080 || exit 1 
