@@ -146,12 +146,12 @@ class Database:
             "echo": echo,
             "json_serializer": lambda obj: json.dumps(obj, ensure_ascii=False, default=str),
         }
-        # We only need SQLite for unittest, but we're going to make it a
-        # first class citizen anyway
         if parsed_url.scheme.lower() == "postgresql":
             self.url = f"postgresql+asyncpg://{parsed_url.netloc}"
         elif parsed_url.scheme.lower() == "sqlite":
-            if url.lower() == "sqlite://:memory:":
+            # Hijacking sqlite://:memory: to make it work with asyncio and SQLAlchemy
+            # Note to self: there might be better way of doing it
+            if url.lower() in ["sqlite://:memory:", "sqlite:///:memory:"]:
                 self.url = "sqlite+aiosqlite://"
                 # Enforce shared cache
                 self.__engine_kwargs["creator"] = lambda: sqlite3.connect(

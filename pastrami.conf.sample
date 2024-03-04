@@ -1,5 +1,5 @@
-# Database URL. Can be either sqlite or postresql (:memory: not supported)
-pastrami_database_url = sqlite:///pastrami.db
+# Database URL. Can be either sqlite or postresql
+pastrami_database_url = sqlite://:memory:
 # Whether create database at startup or not
 pastrami_database_create = true
 # Whether echo SQL queries (debugging only)

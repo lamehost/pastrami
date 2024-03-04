@@ -11,7 +11,7 @@ class TestWebApp(unittest.TestCase):
         self.settings = {
             # Database
             "database":  {
-                "url": "sqlite:///test.db",
+                "url": "sqlite:///:memory:",
                 "create": True,
                 "echo": False,
                 "encrypted": True
@@ -31,8 +31,8 @@ class TestWebApp(unittest.TestCase):
 
         self.app = create_app(settings=self.settings)
 
-    def tearDown(self):
-        os.unlink('./test.db')
+#    def tearDown(self):
+#        os.unlink('./test.db')
 
     def test_http_methods(self):
         with TestClient(self.app) as client:
