@@ -1,7 +1,7 @@
 # Pastrami
 Pastebin web service.  
 
-Type text ans fave it with `ctr+s`.
+Type text and save it with `ctr+s`.
 
 # Install
 The easyest way to install Pastrami is via PIP
