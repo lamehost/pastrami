@@ -5,7 +5,7 @@ pastrami_database_create = true
 # Whether echo SQL queries (debugging only)
 pastrami_database_echo = false
 # Whether encrypt database content
-pastrami_database_encrypted = false
+pastrami_database_encrypted = true
 
 # API contact name
 pastrami_contact_name = Average Joe
