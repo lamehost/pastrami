@@ -24,7 +24,7 @@
 Information describing the package
 """
 
-__version__ = "1.1.2"
+__version__ = "1.1.3"
 __author__ = "Marco Marzetti"
 __author_email__ = "marco@lamehost.it"
 __url__ = "https://github.com/lamehost/anastasia/"
