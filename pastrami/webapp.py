@@ -82,7 +82,7 @@ def create_app(settings: dict = False):
             "email": settings["contact"]["email"],
         },
         title="Pastrami",
-        description="Pastebin web service",
+        description="A lightweight solution for securely storing encrypted text",
         version=VERSION,
     )
 
@@ -110,14 +110,15 @@ def create_app(settings: dict = False):
     # Default web page
     templates = Jinja2Templates(directory=os.path.join(app_directory, "templates"))
 
-    @webapp.get("/{text_id:path}", tags=["Frontend"], response_model=None)
-    async def index_html(
+    # Frontend methods
+    @webapp.get("/{text_id}", tags=["Frontend"], response_model=None)
+    async def show_text(
         request: Request,
         text_id: Optional[str] = False,
         database: Database = Depends(Database(**settings["database"])),
     ) -> Union[PlainTextResponse, HTMLResponse, templates.TemplateResponse]:
         """
-        Web frontend.
+        Return Text by ID.
 
         Arguments:
         ----------
@@ -170,7 +171,54 @@ def create_app(settings: dict = False):
             "index.html", {"request": request, "maxlength": settings["maxlength"], "text": text}
         )
 
-    # API
+    @webapp.get("/", tags=["Frontend"], response_model=None)
+    async def show_web_page(
+        request: Request,
+        database: Database = Depends(Database(**settings["database"])),
+    ) -> HTMLResponse:
+        """
+        Show web page:
+
+        Arguments:
+        ----------
+        request: Request
+            The HTTP request object
+        database: Database
+            Database instance
+
+        Returns:
+        --------
+        HTMLResponse: Web page
+        """
+        return await show_text(request, "", database)
+
+    # API methods
+    @webapp.get("/{text_id}", tags=["API"])
+    async def get_text(
+        text_id: Optional[str] = False,
+        database: Database = Depends(Database(**settings["database"])),
+    ) -> dict:
+        """
+        Return Text by ID.
+
+        Arguments:
+        ----------
+        text_id: str
+            Text identifier. Default: False
+        database: Database
+            Database instance
+
+        Returns:
+        --------
+        dict: Text Schema
+        --------
+
+        """
+        # Delete stale Texts
+        await database.purge_expired(settings["dayspan"])
+
+        return await database.get_text(text_id)
+
     @webapp.post(
         "/",
         response_model=TextSchema,
@@ -239,4 +287,5 @@ def create_app(settings: dict = False):
         if not await database.delete_text(text_id):
             raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
 
+    # Return webapp
     return webapp
