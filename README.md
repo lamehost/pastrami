@@ -1,31 +1,29 @@
 # Pastrami
-Secure text pase web service.  
+Pastrami is a lightweight solution for securely storing encrypted text. It is designed to provide a quick and efficient way to store sensitive information, ensuring that each piece of data is encrypted using its own unique item ID as the encryption key. 
 
-Type text and save it with `ctr+s`.
+# Features
+- **Memory-Only database**: Pastrami can operate entirely in memory, offering fast access and retrieval of encrypted text without persisting data to disk.
+- **Item ID Encryption**: Each piece of text is encrypted using its corresponding item ID. This ensures that the encryption key is unique to each stored item, enhancing the security of your sensitive data.
+ - **Simple and Lightweight**: The service is designed to be easy to use and does not impose unnecessary complexity. Integration with your applications or systems is straightforward.
 
-# Install
-The easyest way to install Pastrami is via poetry
+# Getting Started
+To use the Pastrami web service, follow these steps:
 ```
 git clone https://github.com/lamehost/pastrami.git
 cd pastrami
 poetry install
 ```
-
-## Run
 After Pastrami is installed, you can launch it as follows:
 ```
 cp pastrami.conf.sample pastrami.conf
 poetry run python -m pastrami
 ```
-By default it binds to host 127.0.0.1 port 8080.
-
-## Syntax
-Default HTTP settings can be changed via CLI arguments:
+By default Pastrami binds to port 8080 on localhost. Settings can be changed via CLI:
 ```
 $ poetry run python -m pastrami -h
 usage: pastrami [-h] [-d] [HOST] [PORT]
 
-Secure pastebin web service.
+A lightweight solution for securely storing encrypted text.
 
 positional arguments:
   HOST         Host to bind to. Default: 127.0.0.1
@@ -36,11 +34,10 @@ options:
   -d, --debug  Turns uviconr debugging on
 
 Configuration file name is hardcoded: pastrami.conf
-
 ```
 
 # Formatting options:
-By default content is returned in an HTML page and colorized with *Google Code Prettify* stylesheet. Other formatting options can be returned by attaching an extension at the end of the URL:
+By default Text content is formated as HTML page and colorized with *Google Code Prettify* stylesheet. Other formatting options can be returned by attaching an extension at the end of the URL:
  - **No extension**: Google Code Prettify (default)
  - **.txt**: Regular text file
  - **.md**: Content is interpreted as Markdown and rendered as HTML

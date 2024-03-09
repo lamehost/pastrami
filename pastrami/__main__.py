@@ -41,7 +41,7 @@ def main() -> None:
     # Parse CLI arguments
     parser = argparse.ArgumentParser(
         prog="pastrami",
-        description="Secure pastebin web service.",
+        description="A lightweight solution for securely storing encrypted text.",
         epilog="Configuration file name is hardcoded: pastrami.conf",
     )
     parser.add_argument(
