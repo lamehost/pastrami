@@ -1,5 +1,5 @@
 # Pastrami
-Secure pastebin web service.  
+Secure text pase web service.  
 
 Type text and save it with `ctr+s`.
 
