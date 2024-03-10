@@ -36,6 +36,12 @@ options:
 Configuration file name is hardcoded: pastrami.conf
 ```
 
+## Usage
+Access web frontend at http://localhost:8080. Write text and hit ctrl+s to save.
+
+## API endpoints
+You can use API endpoints to save and retrieve text. If *pastrami_docs* is set to true in *pastrami.conf*, then swagger is available at http://localhost:8080/docs/.
+
 # Formatting options:
 By default Text content is formated as HTML page and colorized with *Google Code Prettify* stylesheet. Other formatting options can be returned by attaching an extension at the end of the URL:
  - **No extension**: Google Code Prettify (default)
