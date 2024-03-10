@@ -112,13 +112,13 @@ def create_app(settings: dict = False):
 
     # Frontend methods
     @webapp.get("/{text_id}", tags=["Frontend"], response_model=None)
-    async def show_text(
+    async def show_text_in_web_page(
         request: Request,
         text_id: Optional[str] = False,
         database: Database = Depends(Database(**settings["database"])),
     ) -> Union[PlainTextResponse, HTMLResponse, templates.TemplateResponse]:
         """
-        Return Text by ID.
+        Show text in web page
 
         Arguments:
         ----------
@@ -190,14 +190,64 @@ def create_app(settings: dict = False):
         --------
         HTMLResponse: Web page
         """
-        return await show_text(request, "", database)
+        return await show_text_in_web_page(request, "", database)
 
     # API methods
-    @webapp.get("/{text_id}", tags=["API"])
+    @webapp.post(
+        "/",
+        response_model=TextSchema,
+        responses={
+            200: {"description": "Success"},
+            400: {"description": "Bad request"},
+            503: {"description": "Transient error"},
+        },
+        description="Creates a new Text and saves it into database",
+        tags=["API"],
+    )
+    async def add_text(
+        text: TextSchema, database: Database = Depends(Database(**settings["database"]))
+    ) -> TextSchema:
+        """
+        Add Text.
+
+        Arguments:
+        ----------
+        Text: TextSchema
+            The schema object
+        database: Database
+            Database instance
+
+        Returns:
+        --------
+        TextSchema: Text Schema
+        """
+        # Delete stale Texts
+        await database.purge_expired(settings["dayspan"])
+
+        if len(text.content) >= settings["maxlength"]:
+            raise HTTPException(
+                status_code=406, detail=f"Text is longer than {settings['maxlength']} chars."
+            )
+
+        # Add Text
+        text = await database.add_text(text)
+        return TextSchema(**text)
+
+    @webapp.get(
+        "/{text_id}",
+        status_code=200,
+        responses={
+            200: {"description": "Success"},
+            404: {"description": "Not found"},
+            503: {"description": "Transient error"},
+        },
+        description="Gets and returns an existing Text from database",
+        tags=["API"]
+    )
     async def get_text(
         text_id: Optional[str] = False,
         database: Database = Depends(Database(**settings["database"])),
-    ) -> dict:
+    ) -> TextSchema:
         """
         Return Text by ID.
 
@@ -210,53 +260,15 @@ def create_app(settings: dict = False):
 
         Returns:
         --------
-        dict: Text Schema
+        TextSchema: Text Schema
         --------
 
         """
         # Delete stale Texts
         await database.purge_expired(settings["dayspan"])
 
-        return await database.get_text(text_id)
-
-    @webapp.post(
-        "/",
-        response_model=TextSchema,
-        responses={
-            200: {"description": "Success"},
-            400: {"description": "Bad request"},
-            503: {"description": "Transient error"},
-        },
-        description="Create a nex Text",
-        tags=["API"],
-    )
-    async def add_text(
-        text: TextSchema, database: Database = Depends(Database(**settings["database"]))
-    ) -> dict:
-        """
-        Create Text.
-
-        Arguments:
-        ----------
-        Text: TextSchema
-            The schema object
-        database: Database
-            Database instance
-
-        Returns:
-        --------
-        dict: Text Schema
-        """
-        # Delete stale Texts
-        await database.purge_expired(settings["dayspan"])
-
-        if len(text.content) >= settings["maxlength"]:
-            raise HTTPException(
-                status_code=406, detail=f"Text is longer than {settings['maxlength']} chars."
-            )
-
-        # Add Text
-        text = await database.add_text(text)
+        # Get text
+        text = await database.get_text(text_id)
         return TextSchema(**text)
 
     @webapp.delete(
