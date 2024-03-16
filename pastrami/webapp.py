@@ -231,32 +231,26 @@ def create_frontend(settings: dict) -> APIRouter:
         if text_id in ["favicon.ico", "index.html", "index.php"]:
             return
 
-        # Render as text
-        if text_id.lower().endswith(".txt"):
-            text_id = text_id[:-4]
-            text = await database.get_text(text_id)
-            if not text:
-                raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
+        # Find extension
+        try:
+            text_id, extension = text_id.lower().rsplit(".", 1)
+        except ValueError:
+            extension = False
 
+        # Get text from database
+        text = await database.get_text(text_id)
+        if not text:
+            raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
+
+        # Render as plain text
+        if extension == "txt":
             return PlainTextResponse(content=text["content"])
 
         # Render as markdown
-        if text_id.lower().endswith(".md"):
-            text_id = text_id[:-3]
-            text = await database.get_text(text_id)
-            if not text:
-                raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
-
+        if extension == "md":
             return HTMLResponse(content=markdown.markdown(str(text["content"])))
 
-        # Default rendering
-        if text_id:
-            text = await database.get_text(text_id)
-            if not text:
-                raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
-        else:
-            text = False
-
+        # Render ash HTML (default)
         return templates.TemplateResponse(
             "index.html.jinja2",
             {"request": request, "maxlength": settings["maxlength"], "text": text},
@@ -265,7 +259,6 @@ def create_frontend(settings: dict) -> APIRouter:
     @frontend.get("/", tags=["Frontend"], response_model=None)
     async def show_web_page(
         request: Request,
-        database: Database = Depends(Database(**settings["database"])),
     ) -> HTMLResponse:
         """
         Show web page:
@@ -274,14 +267,16 @@ def create_frontend(settings: dict) -> APIRouter:
         ----------
         request: Request
             The HTTP request object
-        database: Database
-            Database instance
 
         Returns:
         --------
         HTMLResponse: Web page
         """
-        return await show_text_in_web_page(request, "", database)
+
+        return templates.TemplateResponse(
+            "index.html.jinja2",
+            {"request": request, "maxlength": settings["maxlength"], "text": False},
+        )
 
     return frontend
 
