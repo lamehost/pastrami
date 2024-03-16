@@ -197,9 +197,8 @@ class Database:
         force: bool
             Force reconnection even if a session exists already. Default: False
         """
-        if self.session:
-            if not force:
-                return self.session
+        if self.session and not force:
+            return self.session
 
         try:
             engine = create_async_engine(self.url, **self.__engine_kwargs)
