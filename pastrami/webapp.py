@@ -38,7 +38,7 @@ import os
 from typing import Callable, Optional, Union
 
 import markdown
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -46,6 +46,244 @@ from fastapi.templating import Jinja2Templates
 from pastrami.__about__ import __version__ as VERSION
 from pastrami.database import Database, TextSchema
 from pastrami.settings import Settings
+
+
+def create_api(settings: dict) -> APIRouter:
+    """
+    APIRouter factory.
+
+    Generates API methods that will be included into webapp.
+
+    Parameters:
+    ----------
+    settings: dict
+        App configuration settings. If False, get from configuration file.
+        If file doesn't exists, get from ENV.
+        Default: False
+
+    Returns:
+    --------
+    APIRouter: APIRouter instance
+    """
+
+    api = APIRouter()
+
+    @api.post(
+        "/",
+        response_model=TextSchema,
+        responses={
+            200: {"description": "Success"},
+            400: {"description": "Bad request"},
+            503: {"description": "Transient error"},
+        },
+        description="Creates a new Text and saves it into database",
+        tags=["API"],
+    )
+    async def add_text(
+        text: TextSchema, database: Database = Depends(Database(**settings["database"]))
+    ) -> TextSchema:
+        """
+        Add Text.
+
+        Arguments:
+        ----------
+        Text: TextSchema
+            The schema object
+        database: Database
+            Database instance
+
+        Returns:
+        --------
+        TextSchema: Text Schema
+        """
+        # Delete stale Texts
+        await database.purge_expired(settings["dayspan"])
+
+        if len(text.content) >= settings["maxlength"]:
+            raise HTTPException(
+                status_code=406, detail=f"Text is longer than {settings['maxlength']} chars."
+            )
+
+        # Add Text
+        text = await database.add_text(text)
+        return TextSchema(**text)
+
+    @api.get(
+        "/{text_id}",
+        status_code=200,
+        responses={
+            200: {"description": "Success"},
+            404: {"description": "Not found"},
+            503: {"description": "Transient error"},
+        },
+        description="Gets and returns an existing Text from database",
+        tags=["API"],
+    )
+    async def get_text(
+        text_id: Optional[str] = False,
+        database: Database = Depends(Database(**settings["database"])),
+    ) -> TextSchema:
+        """
+        Return Text by ID.
+
+        Arguments:
+        ----------
+        text_id: str
+            Text identifier. Default: False
+        database: Database
+            Database instance
+
+        Returns:
+        --------
+        TextSchema: Text Schema
+        --------
+
+        """
+        # Delete stale Texts
+        await database.purge_expired(settings["dayspan"])
+
+        # Get text
+        text = await database.get_text(text_id)
+        return TextSchema(**text)
+
+    @api.delete(
+        "/{text_id}",
+        status_code=204,
+        responses={
+            204: {"description": "Success"},
+            404: {"description": "Not found"},
+            503: {"description": "Transient error"},
+        },
+        description="Deletes an existing Text from database",
+        tags=["API"],
+    )
+    async def delete_text(
+        text_id: str, database: Database = Depends(Database(**settings["database"]))
+    ) -> None:
+        """
+        Delete Text.
+
+        Arguments:
+        ----------
+        text_id: str
+            Text object ID
+        database: Database
+            Database instance
+        """
+
+        if not await database.delete_text(text_id):
+            raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
+
+    return api
+
+
+def create_frontend(settings: dict) -> APIRouter:
+    """
+    APIRouter factory.
+
+    Generates frontend methods that will be included into webapp.
+
+    Parameters:
+    ----------
+    settings: dict
+        App configuration settings. If False, get from configuration file.
+        If file doesn't exists, get from ENV.
+        Default: False
+
+    Returns:
+    --------
+    APIRouter: APIRouter instance
+    """
+
+    frontend = APIRouter()
+
+    # Default web page
+    app_directory = os.path.dirname(os.path.realpath(__file__))
+    templates = Jinja2Templates(directory=os.path.join(app_directory, "templates"))
+
+    @frontend.get("/{text_id}", tags=["Frontend"], response_model=None)
+    async def show_text_in_web_page(
+        request: Request,
+        text_id: Optional[str] = False,
+        database: Database = Depends(Database(**settings["database"])),
+    ) -> Union[PlainTextResponse, HTMLResponse, templates.TemplateResponse]:
+        """
+        Show text in web page
+
+        Arguments:
+        ----------
+        request: Request
+            The HTTP request object
+        text_id: str
+            Text identifier. Default: False
+        database: Database
+            Database instance
+
+        Returns:
+        --------
+        Union[PlainTextResponse, HTMLResponse, templates.TemplateResponse]:
+            Web page
+        """
+        # Delete stale Texts
+        await database.purge_expired(settings["dayspan"])
+
+        # Ignore common requests
+        if text_id in ["favicon.ico", "index.html", "index.php"]:
+            return
+
+        # Render as text
+        if text_id.lower().endswith(".txt"):
+            text_id = text_id[:-4]
+            text = await database.get_text(text_id)
+            if not text:
+                raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
+
+            return PlainTextResponse(content=text["content"])
+
+        # Render as markdown
+        if text_id.lower().endswith(".md"):
+            text_id = text_id[:-3]
+            text = await database.get_text(text_id)
+            if not text:
+                raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
+
+            return HTMLResponse(content=markdown.markdown(str(text["content"])))
+
+        # Default rendering
+        if text_id:
+            text = await database.get_text(text_id)
+            if not text:
+                raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
+        else:
+            text = False
+
+        return templates.TemplateResponse(
+            "index.html.jinja2",
+            {"request": request, "maxlength": settings["maxlength"], "text": text},
+        )
+
+    @frontend.get("/", tags=["Frontend"], response_model=None)
+    async def show_web_page(
+        request: Request,
+        database: Database = Depends(Database(**settings["database"])),
+    ) -> HTMLResponse:
+        """
+        Show web page:
+
+        Arguments:
+        ----------
+        request: Request
+            The HTTP request object
+        database: Database
+            Database instance
+
+        Returns:
+        --------
+        HTMLResponse: Web page
+        """
+        return await show_text_in_web_page(request, "", database)
+
+    return frontend
 
 
 def create_app(settings: dict = False):
@@ -107,197 +345,13 @@ def create_app(settings: dict = False):
     static_directory = os.path.join(app_directory, "static")
     webapp.mount("/static", StaticFiles(directory=static_directory, html=True), name="static")
 
-    # Default web page
-    templates = Jinja2Templates(directory=os.path.join(app_directory, "templates"))
-
     # Frontend methods
-    @webapp.get("/{text_id}", tags=["Frontend"], response_model=None)
-    async def show_text_in_web_page(
-        request: Request,
-        text_id: Optional[str] = False,
-        database: Database = Depends(Database(**settings["database"])),
-    ) -> Union[PlainTextResponse, HTMLResponse, templates.TemplateResponse]:
-        """
-        Show text in web page
-
-        Arguments:
-        ----------
-        request: Request
-            The HTTP request object
-        text_id: str
-            Text identifier. Default: False
-        database: Database
-            Database instance
-
-        Returns:
-        --------
-        Union[PlainTextResponse, HTMLResponse, templates.TemplateResponse]:
-            Web page
-        """
-        # Delete stale Texts
-        await database.purge_expired(settings["dayspan"])
-
-        # Ignore common requests
-        if text_id in ["favicon.ico", "index.html", "index.php"]:
-            return
-
-        # Render as text
-        if text_id.lower().endswith(".txt"):
-            text_id = text_id[:-4]
-            text = await database.get_text(text_id)
-            if not text:
-                raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
-
-            return PlainTextResponse(content=text["content"])
-
-        # Render as markdown
-        if text_id.lower().endswith(".md"):
-            text_id = text_id[:-3]
-            text = await database.get_text(text_id)
-            if not text:
-                raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
-
-            return HTMLResponse(content=markdown.markdown(str(text["content"])))
-
-        # Default rendering
-        if text_id:
-            text = await database.get_text(text_id)
-            if not text:
-                raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
-        else:
-            text = False
-
-        return templates.TemplateResponse(
-            "index.html", {"request": request, "maxlength": settings["maxlength"], "text": text}
-        )
-
-    @webapp.get("/", tags=["Frontend"], response_model=None)
-    async def show_web_page(
-        request: Request,
-        database: Database = Depends(Database(**settings["database"])),
-    ) -> HTMLResponse:
-        """
-        Show web page:
-
-        Arguments:
-        ----------
-        request: Request
-            The HTTP request object
-        database: Database
-            Database instance
-
-        Returns:
-        --------
-        HTMLResponse: Web page
-        """
-        return await show_text_in_web_page(request, "", database)
+    frontend = create_frontend(settings)
+    webapp.include_router(frontend)
 
     # API methods
-    @webapp.post(
-        "/",
-        response_model=TextSchema,
-        responses={
-            200: {"description": "Success"},
-            400: {"description": "Bad request"},
-            503: {"description": "Transient error"},
-        },
-        description="Creates a new Text and saves it into database",
-        tags=["API"],
-    )
-    async def add_text(
-        text: TextSchema, database: Database = Depends(Database(**settings["database"]))
-    ) -> TextSchema:
-        """
-        Add Text.
-
-        Arguments:
-        ----------
-        Text: TextSchema
-            The schema object
-        database: Database
-            Database instance
-
-        Returns:
-        --------
-        TextSchema: Text Schema
-        """
-        # Delete stale Texts
-        await database.purge_expired(settings["dayspan"])
-
-        if len(text.content) >= settings["maxlength"]:
-            raise HTTPException(
-                status_code=406, detail=f"Text is longer than {settings['maxlength']} chars."
-            )
-
-        # Add Text
-        text = await database.add_text(text)
-        return TextSchema(**text)
-
-    @webapp.get(
-        "/{text_id}",
-        status_code=200,
-        responses={
-            200: {"description": "Success"},
-            404: {"description": "Not found"},
-            503: {"description": "Transient error"},
-        },
-        description="Gets and returns an existing Text from database",
-        tags=["API"]
-    )
-    async def get_text(
-        text_id: Optional[str] = False,
-        database: Database = Depends(Database(**settings["database"])),
-    ) -> TextSchema:
-        """
-        Return Text by ID.
-
-        Arguments:
-        ----------
-        text_id: str
-            Text identifier. Default: False
-        database: Database
-            Database instance
-
-        Returns:
-        --------
-        TextSchema: Text Schema
-        --------
-
-        """
-        # Delete stale Texts
-        await database.purge_expired(settings["dayspan"])
-
-        # Get text
-        text = await database.get_text(text_id)
-        return TextSchema(**text)
-
-    @webapp.delete(
-        "/{text_id}",
-        status_code=204,
-        responses={
-            204: {"description": "Success"},
-            404: {"description": "Not found"},
-            503: {"description": "Transient error"},
-        },
-        description="Deletes an existing Text from database",
-        tags=["API"],
-    )
-    async def delete_text(
-        text_id: str, database: Database = Depends(Database(**settings["database"]))
-    ) -> None:
-        """
-        Delete Text.
-
-        Arguments:
-        ----------
-        text_id: str
-            Text object ID
-        database: Database
-            Database instance
-        """
-
-        if not await database.delete_text(text_id):
-            raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
+    api = create_api(settings)
+    webapp.include_router(api)
 
     # Return webapp
     return webapp
