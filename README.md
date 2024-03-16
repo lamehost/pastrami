@@ -6,7 +6,7 @@ Pastrami is a lightweight solution for securely storing encrypted text. It is de
 - **Item ID Encryption**: Each piece of text is encrypted using its corresponding item ID. This ensures that the encryption key is unique to each stored item, enhancing the security of your sensitive data.
  - **Simple and Lightweight**: The service is designed to be easy to use and does not impose unnecessary complexity. Integration with your applications or systems is straightforward.
 
-# Getting Started
+# Getting started
 To use the Pastrami web service, follow these steps:
 ```
 git clone https://github.com/lamehost/pastrami.git
@@ -16,11 +16,13 @@ poetry install
 After Pastrami is installed, you can launch it as follows:
 ```
 cp pastrami.conf.sample pastrami.conf
-poetry run python -m pastrami
+poetry run pastrami
 ```
+
+## CLI arguments
 By default Pastrami binds to port 8080 on localhost. Settings can be changed via CLI:
 ```
-$ poetry run python -m pastrami -h
+$ poetry run pastrami -h
 usage: pastrami [-h] [-d] [HOST] [PORT]
 
 A lightweight solution for securely storing encrypted text.
@@ -36,13 +38,21 @@ options:
 Configuration file name is hardcoded: pastrami.conf
 ```
 
-## Usage
+## Docker
+To use pastrami with Docker or Podman, follow these steps:
+```
+podman build -t pastrami:latest .
+cp pastrami.conf.sample pastrami.conf
+podman run -it --rm -p 8080:8080 -v $(pwd)/pastrami.conf:/tmp/pastrami.conf pastrami -d
+```
+
+# Usage
 Access web frontend at http://localhost:8080. Write text and hit ctrl+s to save.
 
 ## API endpoints
 You can use API endpoints to save and retrieve text. If *pastrami_docs* is set to true in *pastrami.conf*, then swagger is available at http://localhost:8080/docs/.
 
-# Formatting options:
+## Formatting options:
 By default Text content is formated as HTML page and colorized with *Google Code Prettify* stylesheet. Other formatting options can be returned by attaching an extension at the end of the URL:
  - **No extension**: Google Code Prettify (default)
  - **.txt**: Regular text file
