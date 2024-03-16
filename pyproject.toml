@@ -38,7 +38,7 @@ requests = "^2.28.2"
 bandit = "^1.7.7"
 
 [tool.poetry.scripts]
-anastasia = "pastrami.__main__:main"
+pastrami = "pastrami.__main__:main"
 
 [build-system]
 requires = ["poetry-core"]
