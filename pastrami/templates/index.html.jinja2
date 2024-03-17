@@ -27,7 +27,7 @@ SOFTWARE
 
 <head>
     <title>Pastrami</title>
-    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
+    <link rel="stylesheet" href="static/normalize.min.css">
     <style>
         .content {
             width: 87vw;
@@ -64,18 +64,19 @@ SOFTWARE
             right: 0;
             bottom: 0;
             margin: 0;
-            height: 6vh;
             width: 100%;
             text-align: right;
         }
 
         .save {
-            border-radius: 50%;
-            border: 1px solid lightgray;
+            border-radius: .4em;
+            border: none;
+            color: white;
+            background-color: SteelBlue;
             align-items: center;
             text-align: center;
             font-size: 1em;
-            padding: 0.5em;
+            padding: 0.7em;
         }
 
         pre {
@@ -120,21 +121,22 @@ SOFTWARE
     {% else %}
     <div class="content">
         <textarea class="form-control" id="paste" placeholder="[ paste text + button or ctrl+s to save ]"
-            spellcheck="false"></textarea>
+            spellcheck="false">
+        </textarea>
         <div class="toolbar">
             <span id="info">0 / {{maxlength}}</span>
             &nbsp;
             <button type="submit" class="save" id="save" title="Click to save">
-                💾
+                <u>S</u>ave 💾
             </button>
         </div>
     </div>
     {% endif %}
 
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.12.1/jquery.min.js"
-        integrity="sha384-F7n3undrbWQvHm0AKtDnmXEJtmwOMrz6OI1A1JpsI13QF+H/j0Mv0W9gHaOXJ65k"
+    <script src="static/jquery-3.7.1.min.js"
+        integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs"
         crossorigin="anonymous"></script>
-    <script src="//rawgit.com/google/code-prettify/master/loader/run_prettify.js?autoload=true"
+    <script src="static/run_prettify.js?autoload=true"
         integrity="sha384-kzCVIKjPGX5Z3kl3N77p1HfqOB9a1qXhDxX5FhD9AEDuQKEShJBzrR0o3iKAMUWR"
         crossorigin="anonymous"></script>
     <link rel="stylesheet" type="text/css" href="static/github-v2.min.css">
