@@ -26,6 +26,7 @@ aiosqlite = "^0.18.0"
 markdown = "^3.4.1"
 cryptography = "^42.0.4"
 flake8 = "^7.0.0"
+asyncpg = "^0.29.0"
 
 [tool.poetry.group.dev.dependencies]
 isort = "^5.12.0"
