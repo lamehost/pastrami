@@ -1,6 +1,11 @@
 # *** Base ***
 FROM python:3.10.4-slim
 
+# Metatada
+EXPOSE 8080/tcp
+LABEL org.opencontainers.image.authors="Marco Marzetti <marco@lamehost.it>"
+LABEL org.opencontainers.image.url="https://github.com/lamehost/pastrami"
+
 # Copy script
 ADD pastrami /pastrami
 ADD README.md /
