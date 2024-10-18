@@ -8,10 +8,11 @@ This module provides data models and methods to read the settings file
 #
 # pylint: disable=too-few-public-methods, no-name-in-module
 
-from pydantic import BaseSettings, EmailStr, Extra, HttpUrl
+from pydantic import EmailStr, AnyHttpUrl
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class DatabaseSettings(BaseSettings, extra=Extra.forbid):
+class DatabaseSettings(BaseSettings):
     """
     Database specific settings
     """
@@ -22,13 +23,13 @@ class DatabaseSettings(BaseSettings, extra=Extra.forbid):
     encrypted: bool = False
 
 
-class ContactSettings(BaseSettings, extra=Extra.forbid):
+class ContactSettings(BaseSettings):
     """
     Contact specific settings
     """
 
     name: str
-    url: HttpUrl
+    url: AnyHttpUrl
     email: EmailStr
 
 
@@ -47,12 +48,5 @@ class Settings(BaseSettings):
     # Activate API docs
     docs: bool = False
 
-    class Config:
-        """
-        Pydantic's BaseSettings configuration statements
-        """
+    model_config = SettingsConfigDict(extra="forbid",         env_file = "pastrami.conf", env_prefix = "pastrami_", env_nested_delimiter = "_" )
 
-        env_file = "pastrami.conf"
-        env_prefix = "pastrami_"
-        extra = Extra.ignore
-        env_nested_delimiter = "_"
