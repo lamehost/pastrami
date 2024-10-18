@@ -130,7 +130,7 @@ class Database:
              is created
     """
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-positional-arguments too-many-arguments
         self,
         url: str,
         echo: bool = False,
