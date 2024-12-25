@@ -16,7 +16,7 @@ class TestDatabase(unittest.IsolatedAsyncioTestCase):
                 await database.get_salt()
 
         with self.assertRaises(ValueError):
-            database = Database("-> wrong <-://127.0.0.1:65535")
+            Database("-> wrong <-://127.0.0.1:65535")
 
     async def test_database_methods(self):
         text = await self.database.add_text(

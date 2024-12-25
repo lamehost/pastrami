@@ -7,14 +7,14 @@ LABEL org.opencontainers.image.authors="Marco Marzetti <marco@lamehost.it>"
 LABEL org.opencontainers.image.url="https://github.com/lamehost/pastrami"
 
 # Copy script
-ADD pastrami /pastrami
-ADD README.md /
+COPY pastrami /pastrami
+COPY README.md /
 
 # Install pastrami
-ADD pyproject.toml /pyproject.toml
-ADD poetry.lock /poetry.lock
-RUN pip install --no-cache-dir poetry
-RUN poetry config virtualenvs.create false \
+COPY pyproject.toml /pyproject.toml
+COPY poetry.lock /poetry.lock
+RUN pip install --no-cache-dir poetry \
+  && poetry config virtualenvs.create false \
   && poetry install --no-interaction --no-ansi
 
 # Restrict permissions
@@ -25,4 +25,4 @@ WORKDIR /tmp
 ENTRYPOINT ["pastrami", "0.0.0.0"]
 
 # Healtcheck
-HEALTHCHECK CMD curl --fail http://localhost:8080 || exit 1 
+HEALTHCHECK CMD ["curl", "--fail", "http://localhost:8080", "||", "exit", "1"]
