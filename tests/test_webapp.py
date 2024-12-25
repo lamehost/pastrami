@@ -18,7 +18,7 @@ class TestWebApp(unittest.TestCase):
             # API frontend stuff
             "contact": {
                 "name": "Average Joe",
-                "url": "http://www.example.com:8080/",
+                "url": "https://www.example.com:8080/",
                 "email": "averagejoe@example.com",
             },
             # UI,
