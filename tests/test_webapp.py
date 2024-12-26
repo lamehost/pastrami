@@ -37,6 +37,12 @@ class TestWebApp(unittest.TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertIn("<title>Pastrami</title>", response.text)
 
+            # Create text
+            response = client.post("/", json={"content": "FooBar"})
+            text = response.json()
+            response = client.get(f"/{text['text_id']}")
+            self.assertIn('<pre class="prettyprint linenums:1">FooBar</pre>', response.text)
+
     def test_api_methods(self):
         with TestClient(self.app) as client:
             # Create text
@@ -51,11 +57,11 @@ class TestWebApp(unittest.TestCase):
             self.assertEqual(response.status_code, 406)
 
             # Get existing
-            response = client.get(f"/{text['text_id']}")
-            self.assertIn('<pre class="prettyprint linenums:1">FooBar</pre>', response.text)
+            response = client.get(f"/{text['text_id']}/raw")
+            self.assertDictEqual(text, response.json())
 
             # Get non-existing
-            response = client.get("f/WRONG")
+            response = client.get("f/WRONG/raw")
             self.assertEqual(response.status_code, 404)
 
             # Delete existing

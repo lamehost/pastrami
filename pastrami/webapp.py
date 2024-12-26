@@ -34,11 +34,12 @@ API and web frontend for the application.
 # pylint: disable=too-few-public-methods, no-name-in-module
 
 
+import datetime
 import os
 from typing import Callable, Optional, Union
 
 import markdown
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -110,7 +111,7 @@ def create_api(settings: dict) -> APIRouter:
         return TextSchema(**text)
 
     @api.get(
-        "/{text_id}",
+        "/{text_id}/raw",
         status_code=200,
         responses={
             200: {"description": "Success"},
@@ -121,6 +122,7 @@ def create_api(settings: dict) -> APIRouter:
         tags=["API"],
     )
     async def get_text(
+        response: Response,
         text_id: Optional[str] = False,
         database: Database = Depends(Database(**settings["database"])),
     ) -> TextSchema:
@@ -145,6 +147,14 @@ def create_api(settings: dict) -> APIRouter:
 
         # Get text
         text = await database.get_text(text_id)
+        if not text:
+            raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
+
+        # Add META
+        response.headers["expires"] = str(
+            text["created"] + datetime.timedelta(days=settings["dayspan"])
+        )
+
         return TextSchema(**text)
 
     @api.delete(
@@ -243,18 +253,22 @@ def create_frontend(settings: dict) -> APIRouter:
         if not text:
             raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
 
+        # Add META
+        headers = {"expires": str(text["created"] + datetime.timedelta(days=settings["dayspan"]))}
+
         # Render as plain text
         if extension == "txt":
-            return PlainTextResponse(content=text["content"])
+            return PlainTextResponse(content=text["content"], headers=headers)
 
         # Render as markdown
         if extension == "md":
-            return HTMLResponse(content=markdown.markdown(str(text["content"])))
+            return HTMLResponse(content=markdown.markdown(str(text["content"])), headers=headers)
 
         # Render ash HTML (default)
         return templates.TemplateResponse(
             "index.html.jinja2",
             {"request": request, "maxlength": settings["maxlength"], "text": text},
+            headers=headers,
         )
 
     @frontend.get("/", tags=["Frontend"], response_model=None)
