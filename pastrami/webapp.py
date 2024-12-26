@@ -104,9 +104,8 @@ def create_api(settings: dict) -> APIRouter:
         text = await database.add_text(text)
 
         # Add META
-        response.headers["expires"] = str(
-            text["created"] + datetime.timedelta(days=settings["dayspan"])
-        )
+        expires = text["created"] + datetime.timedelta(days=settings["dayspan"])
+        response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
         return TextSchema(**text)
 
@@ -140,9 +139,8 @@ def create_api(settings: dict) -> APIRouter:
             raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
 
         # Add META
-        response.headers["expires"] = str(
-            text["created"] + datetime.timedelta(days=settings["dayspan"])
-        )
+        expires = text["created"] + datetime.timedelta(days=settings["dayspan"])
+        response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
         return TextSchema(**text)
 
@@ -230,7 +228,8 @@ def create_frontend(settings: dict) -> APIRouter:
             raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
 
         # Add META
-        headers = {"expires": str(text["created"] + datetime.timedelta(days=settings["dayspan"]))}
+        expires = text["created"] + datetime.timedelta(days=settings["dayspan"])
+        headers = {"expires": expires.strftime("%a, %d %b %Y %H:%M:%S GMT")}
 
         # Render as plain text
         if extension == "txt":
