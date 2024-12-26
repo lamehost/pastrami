@@ -12,7 +12,7 @@ pastrami_contact_name = Average Joe
 # API contact email address
 pastrami_contact_email = averagejoe@example.com
 # API contact URL
-pastrami_contact_url = http://0.0.0.0:8080
+pastrami_contact_url = https://www.example.com:8080
 
 # Enable API docs
 pastrami_docs = false
