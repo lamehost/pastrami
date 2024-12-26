@@ -109,6 +109,40 @@ def create_api(settings: dict) -> APIRouter:
 
         return TextSchema(**text)
 
+    @api.head(
+        "/{text_id}",
+        status_code=200,
+        responses={
+            204: {"description": "Success"},
+            404: {"description": "Not found"},
+            503: {"description": "Transient error"},
+        },
+        tags=["API"],
+    )
+    async def get_metadata(
+        response: Response,
+        text_id: Optional[str] = False,
+        database: Database = Depends(Database(**settings["database"])),
+    ):
+        """
+        **Return metadata.**
+
+        Retrieves the metadata associated with the text matching with `text_id`. Values are
+        serialized as HTTP headers.
+        """
+        # Delete stale Texts
+        await database.purge_expired(settings["dayspan"])
+
+        # Get text
+        text = await database.get_text(text_id)
+        if not text:
+            raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
+
+        # Populate meta
+        expires = text["created"] + datetime.timedelta(days=settings["dayspan"])
+        response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")
+        response.status_code = 204
+
     @api.get(
         "/{text_id}/raw",
         status_code=200,
