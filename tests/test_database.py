@@ -38,8 +38,26 @@ class TestDatabase(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(DuplicatedItemException):
             await self.database.add_text(
                 {
-                    "text_id": "DUPLICATED",
+                    "text_id": "DUPLICATED  ",
                     "content": "FooBar",
+                    "created": "1970-01-01 00:00:00",
+                }
+            )
+
+        with self.assertRaises(ValueError):
+            await self.database.add_text(
+                {
+                    "text_id": " ",
+                    "content": "FooBar",
+                    "created": "1970-01-01 00:00:00",
+                }
+            )
+
+        with self.assertRaises(ValueError):
+            await self.database.add_text(
+                {
+                    "text_id": "SOMETHING",
+                    "content": "",
                     "created": "1970-01-01 00:00:00",
                 }
             )
