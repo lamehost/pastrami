@@ -74,6 +74,7 @@ def create_api(settings: dict) -> APIRouter:
         responses={
             200: {"description": "Success"},
             400: {"description": "Bad request"},
+            422: {"description": "Unprocessable entity"},
             503: {"description": "Transient error"},
         },
         description="Creates a new Text and saves it into database",
