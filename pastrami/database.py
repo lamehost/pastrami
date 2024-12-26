@@ -38,14 +38,14 @@ import json
 import logging
 import sqlite3
 from datetime import datetime, timedelta
-from typing import Tuple, Union
+from typing import Annotated, Tuple, Union
 from urllib.parse import urlparse
 from uuid import uuid4
 
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy import Column, DateTime, String
 from sqlalchemy.exc import DataError, IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -89,9 +89,15 @@ class TextSchema(BaseModel):
     Defines the model to describe a Text
     """
 
-    text_id: str = Field(description="Task identifier", default_factory=lambda: str(uuid4()))
+    text_id: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=36)
+    ] = (
+        Field(description="Task identifier", default_factory=lambda: str(uuid4())),
+    )
 
-    content: str = Field(description="Text content")
+    content: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = (
+        Field(description="Text content"),
+    )
 
     created: datetime = Field(
         description="Last moment the text was created", default_factory=datetime.utcnow
