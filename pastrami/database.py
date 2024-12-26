@@ -91,14 +91,10 @@ class TextSchema(BaseModel):
 
     text_id: Annotated[
         str, StringConstraints(strip_whitespace=True, min_length=1, max_length=36)
-    ] = (
-        Field(description="Task identifier", default_factory=lambda: str(uuid4())),
+    ] = Field(description="Task identifier", default_factory=lambda: str(uuid4()))
+    content: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(
+        description="Text content"
     )
-
-    content: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = (
-        Field(description="Text content"),
-    )
-
     created: datetime = Field(
         description="Last moment the text was created", default_factory=datetime.utcnow
     )
