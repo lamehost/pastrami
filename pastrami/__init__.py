@@ -23,7 +23,7 @@
 # SOFTWARE
 
 """
-Pastebin web service.
+Secure, minimalist text storage for your sensitive data.
 """
 
 from .database import TextSchema

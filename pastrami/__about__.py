@@ -24,11 +24,11 @@
 Information describing the package
 """
 
-__version__ = "1.2.0"
+__version__ = "1.2.3"
 __author__ = "Marco Marzetti"
 __author_email__ = "marco@lamehost.it"
-__url__ = "https://github.com/lamehost/anastasia/"
-__description__ = "Pastebin web service."
+__url__ = "https://github.com/lamehost/pastrami/"
+__description__ = "Secure, minimalist text storage for your sensitive data."
 __license__ = "MIT"
 __classifiers__ = [
     "Intended Audience :: Developers",

@@ -78,25 +78,19 @@ def create_api(settings: dict) -> APIRouter:
             422: {"description": "Unprocessable entity"},
             503: {"description": "Transient error"},
         },
-        description="Creates a new Text and saves it into database",
         tags=["API"],
     )
     async def add_text(
-        text: TextSchema, database: Database = Depends(Database(**settings["database"]))
+        response: Response,
+        text: TextSchema,
+        database: Database = Depends(Database(**settings["database"]))
     ) -> TextSchema:
         """
-        Add Text.
-
-        Arguments:
-        ----------
-        Text: TextSchema
-            The schema object
-        database: Database
-            Database instance
-
-        Returns:
-        --------
-        TextSchema: Text Schema
+        **Add text.**  
+        
+        Stores text within the database. The text is serialized as a JSON object. Both the 
+        `text_id` and `content` fields are mandatory. If a `text_id` is not provided, the system 
+        will automatically generate a UUID.
         """
         # Delete stale Texts
         await database.purge_expired(settings["dayspan"])
@@ -108,6 +102,12 @@ def create_api(settings: dict) -> APIRouter:
 
         # Add Text
         text = await database.add_text(text)
+
+        # Add META
+        response.headers["expires"] = str(
+            text["created"] + datetime.timedelta(days=settings["dayspan"])
+        )
+
         return TextSchema(**text)
 
     @api.get(
@@ -118,7 +118,6 @@ def create_api(settings: dict) -> APIRouter:
             404: {"description": "Not found"},
             503: {"description": "Transient error"},
         },
-        description="Gets and returns an existing Text from database",
         tags=["API"],
     )
     async def get_text(
@@ -127,20 +126,10 @@ def create_api(settings: dict) -> APIRouter:
         database: Database = Depends(Database(**settings["database"])),
     ) -> TextSchema:
         """
-        Return Text by ID.
+        **Return Text.**
 
-        Arguments:
-        ----------
-        text_id: str
-            Text identifier. Default: False
-        database: Database
-            Database instance
-
-        Returns:
-        --------
-        TextSchema: Text Schema
-        --------
-
+        Retrieves the Text object associated with `text_id`. Unlike the corresponding frontend 
+        method, this function directly returns the JSON object.
         """
         # Delete stale Texts
         await database.purge_expired(settings["dayspan"])
@@ -165,21 +154,15 @@ def create_api(settings: dict) -> APIRouter:
             404: {"description": "Not found"},
             503: {"description": "Transient error"},
         },
-        description="Deletes an existing Text from database",
         tags=["API"],
     )
     async def delete_text(
         text_id: str, database: Database = Depends(Database(**settings["database"]))
     ) -> None:
         """
-        Delete Text.
+        **Delete Text.**
 
-        Arguments:
-        ----------
-        text_id: str
-            Text object ID
-        database: Database
-            Database instance
+        Deletes the text matching `text_id`.
         """
 
         if not await database.delete_text(text_id):
@@ -219,21 +202,14 @@ def create_frontend(settings: dict) -> APIRouter:
         database: Database = Depends(Database(**settings["database"])),
     ) -> Union[PlainTextResponse, HTMLResponse, templates.TemplateResponse]:
         """
-        Show text in web page
+        **Show text in web page.**
 
-        Arguments:
-        ----------
-        request: Request
-            The HTTP request object
-        text_id: str
-            Text identifier. Default: False
-        database: Database
-            Database instance
-
-        Returns:
-        --------
-        Union[PlainTextResponse, HTMLResponse, templates.TemplateResponse]:
-            Web page
+        Retrieves the Text object associated with `text_id`. By default Text content is formated 
+        as HTML page and colorized with Google Code Prettify stylesheet. Other formatting options 
+        can be returned by attaching an extension at the end of `text_id`:
+         - **No extension**: Google Code Prettify (default)
+         - **.txt**: Regular text file
+         - **.md**: Content is interpreted as Markdown and rendered as HTML
         """
         # Delete stale Texts
         await database.purge_expired(settings["dayspan"])
@@ -276,16 +252,7 @@ def create_frontend(settings: dict) -> APIRouter:
         request: Request,
     ) -> HTMLResponse:
         """
-        Show web page:
-
-        Arguments:
-        ----------
-        request: Request
-            The HTTP request object
-
-        Returns:
-        --------
-        HTMLResponse: Web page
+        **Show default web page.**
         """
 
         return templates.TemplateResponse(
@@ -330,7 +297,7 @@ def create_app(settings: dict = False):
             "email": settings["contact"]["email"],
         },
         title="Pastrami",
-        description="A lightweight solution for securely storing encrypted text",
+        description="Secure, minimalist text storage for your sensitive data",
         version=VERSION,
     )
 
