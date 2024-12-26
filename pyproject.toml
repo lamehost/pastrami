@@ -6,7 +6,7 @@ line-length = 100
 
 [tool.poetry]
 name = "pastrami"
-version = "1.2.0"
+version = "1.2.2"
 description = ""
 authors = ["Marco Marzetti <marco@lamehost.it>"]
 readme = "README.md"
