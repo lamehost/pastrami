@@ -83,13 +83,13 @@ def create_api(settings: dict) -> APIRouter:
     async def add_text(
         response: Response,
         text: TextSchema,
-        database: Database = Depends(Database(**settings["database"]))
+        database: Database = Depends(Database(**settings["database"])),
     ) -> TextSchema:
         """
-        **Add text.**  
-        
-        Stores text within the database. The text is serialized as a JSON object. Both the 
-        `text_id` and `content` fields are mandatory. If a `text_id` is not provided, the system 
+        **Add text.**
+
+        Stores text within the database. The text is serialized as a JSON object. Both the
+        `text_id` and `content` fields are mandatory. If a `text_id` is not provided, the system
         will automatically generate a UUID.
         """
         # Delete stale Texts
@@ -128,7 +128,7 @@ def create_api(settings: dict) -> APIRouter:
         """
         **Return Text.**
 
-        Retrieves the Text object associated with `text_id`. Unlike the corresponding frontend 
+        Retrieves the Text object associated with `text_id`. Unlike the corresponding frontend
         method, this function directly returns the JSON object.
         """
         # Delete stale Texts
@@ -204,8 +204,8 @@ def create_frontend(settings: dict) -> APIRouter:
         """
         **Show text in web page.**
 
-        Retrieves the Text object associated with `text_id`. By default Text content is formated 
-        as HTML page and colorized with Google Code Prettify stylesheet. Other formatting options 
+        Retrieves the Text object associated with `text_id`. By default Text content is formated
+        as HTML page and colorized with Google Code Prettify stylesheet. Other formatting options
         can be returned by attaching an extension at the end of `text_id`:
          - **No extension**: Google Code Prettify (default)
          - **.txt**: Regular text file
