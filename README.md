@@ -1,5 +1,5 @@
 # Pastrami
-Pastrami is a lightweight solution for securely storing encrypted text. It is designed to provide a quick and efficient way to store sensitive information, ensuring that each piece of data is encrypted using its own unique item ID as the encryption key. 
+Pastrami is a secure, minimalist text storage for your sensitive data. It is designed to provide a quick and efficient way to store sensitive information, ensuring that each piece of data is encrypted using its own unique item ID as the encryption key. 
 
 # Features
 - **Memory-Only database**: Pastrami can operate entirely in memory, offering fast access and retrieval of encrypted text without persisting data to disk.
