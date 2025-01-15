@@ -43,6 +43,7 @@ from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Respons
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.templating import _TemplateResponse
 
 from pastrami.__about__ import __version__ as VERSION
 from pastrami.database import Database, TextSchema
@@ -232,7 +233,7 @@ def create_frontend(settings: dict) -> APIRouter:
         request: Request,
         text_id: Optional[str] = False,
         database: Database = Depends(Database(**settings["database"])),
-    ) -> Union[PlainTextResponse, HTMLResponse, templates.TemplateResponse]:
+    ) -> Union[PlainTextResponse, HTMLResponse, _TemplateResponse]:
         """
         **Show text in web page.**
 
