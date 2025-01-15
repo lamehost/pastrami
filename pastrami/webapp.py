@@ -271,7 +271,12 @@ def create_frontend(settings: dict) -> APIRouter:
 
         # Render as markdown
         if extension == "md":
-            return HTMLResponse(content=markdown.markdown(str(text["content"])), headers=headers)
+            text["content"] = markdown.markdown(str(text["content"]))
+            return templates.TemplateResponse(
+                "markdown.jinja2",
+                {"request": request, "text": text},
+                headers=headers,
+            )
 
         # Render ash HTML (default)
         return templates.TemplateResponse(
