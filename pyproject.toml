@@ -25,6 +25,7 @@ cryptography = "^44.0.1"
 asyncpg = "^0.30.0"
 pydantic-settings = "^2.6.0"
 email-validator = "^2.2.0"
+lxml = "^5.3.2"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "^7.0.0"

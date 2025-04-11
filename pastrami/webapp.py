@@ -35,6 +35,7 @@ API and web frontend for the application.
 
 
 import datetime
+import json
 import os
 from typing import Callable, Optional, Union
 
@@ -43,11 +44,75 @@ from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Respons
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from lxml import etree
 from starlette.templating import _TemplateResponse
 
 from pastrami.__about__ import __version__ as VERSION
 from pastrami.database import Database, TextSchema
 from pastrami.settings import Settings
+
+
+class PrettyJSONResponse(Response):
+    """
+    Response class to return prettified JSON objects
+    """
+
+    media_type = "application/json"
+
+    def render(self, content: str) -> bytes:
+        """
+        Renders content as prettified JSON.
+
+        Arguments:
+        ----------
+        content: str
+            The content to prettify
+
+        Returns:
+        --------
+        bytes: The prettified JSON encoded as UTF-8
+        """
+        try:
+            data = json.loads(content)
+        except json.decoder.JSONDecodeError as error:
+            raise HTTPException(
+                status_code=406, detail="This content is not JSON serializable"
+            ) from error
+
+        return json.dumps(data, indent=2).encode("utf-8")
+
+
+class PrettyXMLResponse(Response):
+    """
+    Response class to return prettified XML objects
+    """
+
+    media_type = "text/xml"
+
+    def render(self, content: str) -> bytes:
+        """
+        Renders content as prettified XML.
+
+        Arguments:
+        ----------
+        content: str
+            The content to prettify
+
+        Returns:
+        --------
+        bytes: The prettified XML encoded as UTF-8
+        """
+        try:
+            parser = etree.XMLParser(
+                remove_blank_text=True
+            )  # pylint: disable=c-extension-no-member
+            data = etree.XML(content, parser)  # pylint: disable=c-extension-no-member
+        except etree.XMLSyntaxError as error:  # pylint: disable=c-extension-no-member
+            raise HTTPException(
+                status_code=406, detail="This content is not XML serializable"
+            ) from error
+
+        return etree.tostring(data, pretty_print=True)  # pylint: disable=c-extension-no-member
 
 
 def create_api(settings: dict) -> APIRouter:
@@ -233,7 +298,9 @@ def create_frontend(settings: dict) -> APIRouter:
         request: Request,
         text_id: Optional[str] = False,
         database: Database = Depends(Database(**settings["database"])),
-    ) -> Union[PlainTextResponse, HTMLResponse, _TemplateResponse]:
+    ) -> Union[
+        PlainTextResponse, HTMLResponse, _TemplateResponse, PrettyJSONResponse, PrettyXMLResponse
+    ]:
         """
         **Show text in web page.**
 
@@ -242,6 +309,8 @@ def create_frontend(settings: dict) -> APIRouter:
         can be returned by attaching an extension at the end of `text_id`:
          - **No extension**: Google Code Prettify (default)
          - **.txt**: Regular text file
+         - **.json**: Prettified JSON object
+         - **.xml**: Prettified XML object
          - **.md**: Content is interpreted as Markdown and rendered as HTML
         """
         # Delete stale Texts
@@ -269,6 +338,14 @@ def create_frontend(settings: dict) -> APIRouter:
         # Render as plain text
         if extension == "txt":
             return PlainTextResponse(content=text["content"], headers=headers)
+
+        # Render as plain JSON
+        if extension == "json":
+            return PrettyJSONResponse(content=text["content"], headers=headers)
+
+        # Render as plain XML
+        if extension == "xml":
+            return PrettyXMLResponse(content=text["content"], headers=headers)
 
         # Render as markdown
         if extension == "md":
