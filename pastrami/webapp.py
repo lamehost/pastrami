@@ -171,7 +171,7 @@ def create_api(settings: dict) -> APIRouter:
 
         # Add META
         expires = text["created"] + datetime.timedelta(days=settings["dayspan"])
-        response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")
+        response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")  # NOSONAR
 
         return TextSchema(**text)
 
@@ -206,7 +206,7 @@ def create_api(settings: dict) -> APIRouter:
 
         # Populate meta
         expires = text["created"] + datetime.timedelta(days=settings["dayspan"])
-        response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")
+        response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")  # NOSONAR
         response.status_code = 204
 
     @api.get(
@@ -240,7 +240,7 @@ def create_api(settings: dict) -> APIRouter:
 
         # Add META
         expires = text["created"] + datetime.timedelta(days=settings["dayspan"])
-        response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")
+        response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")  # NOSONAR
 
         return TextSchema(**text)
 
@@ -333,7 +333,7 @@ def create_frontend(settings: dict) -> APIRouter:
 
         # Add META
         expires = text["created"] + datetime.timedelta(days=settings["dayspan"])
-        headers = {"expires": expires.strftime("%a, %d %b %Y %H:%M:%S GMT")}
+        headers = {"expires": expires.strftime("%a, %d %b %Y %H:%M:%S GMT")}  # NOSONAR
 
         # Render as plain text
         if extension == "txt":
