@@ -2,7 +2,7 @@
 
 # MIT License
 
-# Copyright (c) 2024, Marco Marzetti <marco@lamehost.it>
+# Copyright (c) 2025, Marco Marzetti <marco@lamehost.it>
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,7 @@
 Secure, minimalist text storage for your sensitive data.
 """
 
-from .database import TextSchema
-from .webapp import create_app
+from .settings import Settings
+from .webapp import TextSchema, create_app
 
-__all__ = ["create_app", "TextSchema"]
+__all__ = ["Settings", "TextSchema", "create_app"]
