@@ -3,11 +3,12 @@ import unittest
 from fastapi.testclient import TestClient
 
 from pastrami import create_app
+from pastrami import Settings
 
 
 class TestWebApp(unittest.TestCase):
     def setUp(self):
-        self.settings = {
+        self.settings = Settings.model_validate({
             # Database
             "database": {
                 "url": "sqlite:///:memory:",
@@ -26,7 +27,7 @@ class TestWebApp(unittest.TestCase):
             # Text
             "dayspan": 1,
             "maxlength": 10,
-        }
+        })
 
         self.app = create_app(settings=self.settings)
 
