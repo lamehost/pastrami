@@ -2,7 +2,7 @@
 
 # MIT License
 
-# Copyright (c) 2024, Marco Marzetti <marco@lamehost.it>
+# Copyright (c) 2025, Marco Marzetti <marco@lamehost.it>
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -38,19 +38,17 @@ import json
 import logging
 import sqlite3
 from datetime import datetime, timedelta
-from typing import Annotated, Tuple, Union
+from typing import Tuple, TypedDict
 from urllib.parse import urlparse
 from uuid import uuid4
 
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy import Column, DateTime, String
 from sqlalchemy.exc import DataError, IntegrityError, OperationalError, SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.orm import declarative_base, validates
 from sqlalchemy.pool import StaticPool
 
 LOGGER = logging.getLogger(__name__)
@@ -64,40 +62,61 @@ class TextModel(BASE):
     """
 
     __tablename__ = "texts"
-    text_id = Column(String, primary_key=True, default=lambda: str(uuid4()))
-    content = Column(String, nullable=False)
+    text_id = Column(String(), primary_key=True, default=lambda: str(uuid4()))
+    salt = Column(String(), nullable=True)
+    content = Column(String(), nullable=False)
     created = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    @validates("text_id")
+    def validate_text_id(self, _, text_id) -> str:
+        """
+        Validates text_id length
+
+        Arguments:
+        ----------
+        _: Any
+            Ignored
+        text_id: str
+            text identifier
+
+        Returns:
+        --------
+        str: text identifier
+        """
+        if len(text_id.strip()) < 1:
+            raise ValueError("text_id cannot be empty")
+        return text_id
+
+    @validates("content")
+    def validate_content(self, _, content) -> str:
+        """
+        Validates content length
+
+        Arguments:
+        ----------
+        _: Any
+            Ignored
+        text_id: str
+            content
+
+        Returns:
+        --------
+        str: content
+        """
+        if len(content.strip()) < 1:
+            raise ValueError("content cannot be empty")
+        return content
+
     def __repr__(self):
         return str(self.content)
 
 
-class SaltModel(BASE):
-    """
-    Describes database table `salt`
-    """
+class Text(TypedDict):
+    """Text object"""
 
-    __tablename__ = "salt"
-    salt = Column(String, primary_key=True)
-
-    def __repr__(self):
-        return str(self.content)
-
-
-class TextSchema(BaseModel):
-    """
-    Defines the model to describe a Text
-    """
-
-    text_id: Annotated[
-        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=36)
-    ] = Field(description="Task identifier", default_factory=lambda: str(uuid4()))
-    content: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(
-        description="Text content"
-    )
-    created: datetime = Field(
-        description="Last moment the text was created", default_factory=datetime.utcnow
-    )
+    text_id: str
+    content: str
+    created: datetime
 
 
 class DuplicatedItemException(Exception):
@@ -132,13 +151,14 @@ class Database:
              is created
     """
 
+    FERNET_ITERATIONS = 600_000
+
     def __init__(  # pylint: disable=too-many-positional-arguments too-many-arguments
         self,
         url: str,
         echo: bool = False,
         create: bool = False,
         encrypted: bool = False,
-        session: Union[bool, AsyncSession] = False,
     ) -> None:
         self.__encrypted = encrypted
 
@@ -169,9 +189,7 @@ class Database:
             # LOGGER.error(error)
             raise ValueError(error)
 
-        if session and isinstance(session, bool):
-            raise ValueError("Session can be either false or AsyncSession")
-        self.session = session
+        self.session = None
 
     async def __call__(self):
         if not self.session:
@@ -185,23 +203,12 @@ class Database:
         return self
 
     async def __aexit__(self, *args, **kwargs):
-        try:
-            await self.session.close()
-        except AttributeError:
-            pass
+        await self.disconnect()
 
-    async def connect(self, force: bool = False) -> None:
+    async def connect(self) -> None:
         """
         Connects instance to database.
-
-        Arguments:
-        ----------
-        force: bool
-            Force reconnection even if a session exists already. Default: False
         """
-        if self.session and not force:
-            return self.session
-
         try:
             engine = create_async_engine(self.url, **self.__engine_kwargs)
 
@@ -215,79 +222,87 @@ class Database:
                     LOGGER.error(error)
                     raise RuntimeError(error) from error
 
-            make_session = sessionmaker(
-                autocommit=False, autoflush=False, bind=engine, class_=AsyncSession
-            )
+            make_session = async_sessionmaker(bind=engine, autoflush=False)
         except SQLAlchemyError as error:
             LOGGER.error(error)
             raise error from error
 
         self.session = make_session()
 
+    async def disconnect(self) -> None:
+        """
+        Disconnects instance from database.
+        """
+        try:
+            if self.session:
+                await self.session.close()
+        except AttributeError:
+            pass
+
     # Crypto methods
     @staticmethod
-    async def __encrypt_text_id(text_id: [str, bytes]) -> str:
+    async def __calculate_hash(text: str) -> str:
         """
-        Returns and encrypted version a Text identier.
+        Returns the SHA256 has of a text.
 
         Arguments:
         ----------
-        text_id: str or bytes
-            Unencrypted text identier
+        text: str
+            Plain text
 
         Returns:
         --------
-        str: encrypted Text identifier
+        str: Hexadecimal string representing the SHA256 hash
         """
-        if not isinstance(text_id, bytes):
-            text_id = text_id.encode("utf-8")
-        return str(hashlib.sha256(text_id).hexdigest())
 
-    async def __encrypt(self, text_id: [str, bytes], content: str) -> Tuple[str, bytes]:
+        return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+    async def __encrypt(self, text_id: str, salt: str, content: str) -> Tuple[str, str]:
         """
         Encrypts content using text_id as encryption key
 
         Arguments:
         ----------
-        text_id: str or bytes
+        text_id: str
             Text ID used as encryption key
+        salt: str
+            Salt used during encryption
         content: str
             Content to be encrypted
 
         Returns:
         --------
         Tuple:
-         - encrypted Text identifier
-         - encrypted content
+         - str: hashed text_id
+         - str: encrypted content
         """
-        if not isinstance(text_id, bytes):
-            text_id = text_id.encode("utf-8")
-
-        encrypted_text_id = await self.__encrypt_text_id(text_id)
-
-        salt = await self.get_salt()
+        # Encrypt content
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt.encode("utf-8"),
-            iterations=480000,
+            iterations=self.FERNET_ITERATIONS,
         )
-        private_key = base64.urlsafe_b64encode(kdf.derive(text_id))
+        private_key = base64.urlsafe_b64encode(kdf.derive(text_id.encode("utf-8")))
 
         fernet = Fernet(private_key)
         token = fernet.encrypt(content.encode("utf-8"))
-        encrypted_content = base64.b64encode(token)
+        encrypted_content = base64.b64encode(token).decode("utf-8")
 
-        return (encrypted_text_id, encrypted_content)
+        text_id_hash = await self.__calculate_hash(text_id)
 
-    async def __decrypt(self, text_id: [str, bytes], encrypted_content: bytes) -> str:
+        return (text_id_hash, encrypted_content)
+
+    async def __decrypt(self, text_id: str, salt: str, encrypted_content: str) -> str:
         """
         Decrypts content using text_id as decryption key
 
         Arguments:
         ----------
-        text_id: str or bytes
-            Text ID used as decryption key
+        text_id: str
+            Hashed text ID
+        salt: str
+            Salt used during encryption
         encrypted_content: str
             Content to be decrypted
 
@@ -295,57 +310,22 @@ class Database:
         --------
         str: decrypted content
         """
-        if not isinstance(text_id, bytes):
-            text_id = text_id.encode("utf-8")
-
-        salt = await self.get_salt()
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt.encode("utf-8"),
-            iterations=480000,
+            iterations=self.FERNET_ITERATIONS,
         )
-        private_key = base64.urlsafe_b64encode(kdf.derive(text_id))
-
-        token = base64.b64decode(encrypted_content)
+        private_key = base64.urlsafe_b64encode(kdf.derive(text_id.encode("utf-8")))
 
         fernet = Fernet(private_key)
-        return fernet.decrypt(token).decode("utf-8")
+        token = base64.b64decode(encrypted_content.encode("utf-8"))
+        content = fernet.decrypt(token).decode("utf-8")
 
-    # Salt methods
-    async def get_salt(self) -> str:
-        """
-        Gets salt from database. If salt is missing, it creates it
-
-        Returns:
-        --------
-        str: salt
-        """
-        # Get salt from database
-        async with self.session as session:
-            db_object = await session.run_sync(
-                lambda sync_session: sync_session.query(SaltModel).first()
-            )
-
-        if db_object is not None:
-            return db_object.salt
-
-        # Generate salt if missing
-        async with self.session as session:
-            salt = str(uuid4())
-            async with session.begin():
-                session.add(SaltModel(salt=salt))
-
-                try:
-                    await session.commit()
-                except (DataError, OperationalError) as error:
-                    await session.rollback()
-                    raise RuntimeError(error) from error
-
-        return salt
+        return content
 
     # Text methods
-    async def add_text(self, text: Union[TextSchema, dict]) -> dict:
+    async def add_text(self, text: Text) -> Text:
         """
         Adds text to database
 
@@ -358,16 +338,26 @@ class Database:
         --------
         dict: Text object
         """
-        text = TextSchema.parse_obj(text).dict()
+        if not self.session:
+            raise BrokenPipeError("Not connected to the database")  # NOSONAR
+
+        if len(text["text_id"].strip()) < 1:
+            raise ValueError("text_id cannot be empty")
+
+        if len(text["content"].strip()) < 1:
+            raise ValueError("content cannot be empty")
 
         # Hide text_id with hashing
         original_text_id = text["text_id"]
         if self.__encrypted:
+            salt = str(uuid4())
             text["text_id"], text["content"] = await self.__encrypt(
-                text["text_id"], text["content"]
+                text["text_id"], salt, text["content"]
             )
+        else:
+            salt = None
 
-        db_object = TextModel(**text)
+        db_object = TextModel(**text, salt=salt)
 
         async with self.session as session:
             async with session.begin():
@@ -390,7 +380,7 @@ class Database:
 
         return await self.get_text(original_text_id)
 
-    async def get_text(self, text_id: str) -> Union[dict, None]:
+    async def get_text(self, text_id: str) -> Text:
         """
         Gets a text from database
 
@@ -402,34 +392,39 @@ class Database:
         --------
         None if no text was found, otherwise the `text` formatted as dict
         """
+        if not self.session:
+            raise BrokenPipeError("Not connected to the database")  # NOSONAR
 
         # text_id is hidden with hashing
         original_text_id = text_id
         if self.__encrypted:
-            text_id = await self.__encrypt_text_id(text_id)
+            text_id = await self.__calculate_hash(text_id)
 
         async with self.session as session:
             text = await session.run_sync(
                 lambda sync_session: sync_session.query(TextModel)
-                .filter(TextModel.text_id == str(text_id))
+                .filter(TextModel.text_id == text_id)
                 .first()
             )
 
         if text is None:
-            return None
+            raise ValueError(f"Unable to find matching text. Text ID: {original_text_id}")
 
         if self.__encrypted:
             try:
-                content = await self.__decrypt(original_text_id, text.content)
-            except InvalidToken:
-                LOGGER.debug("Unable to decrypt content. Text ID: %s", original_text_id)
-                return None
+                content = await self.__decrypt(original_text_id, str(text.salt), str(text.content))
+            except InvalidToken as error:
+                raise ValueError(
+                    f"Unable to decrypt content. Text ID: {original_text_id}"
+                ) from error
         else:
             content = text.content
 
-        return TextSchema(text_id=original_text_id, content=content, created=text.created).dict()
+        LOGGER.debug("Text returned from the database. Text ID: %s", original_text_id)
 
-    async def delete_text(self, text_id: str) -> bool:
+        return Text(text_id=original_text_id, content=content, created=text.created)  # type: ignore
+
+    async def delete_text(self, text_id: str):
         """
         Deletes text from database
 
@@ -437,15 +432,14 @@ class Database:
         ----------
         text_id: str
             Text identifier
-
-        Returns:
-        --------
-        True if the text was deleted, otherwise False
         """
+        if not self.session:
+            raise BrokenPipeError("Not connected to the database")  # NOSONAR
+
         # text_id is hidden with hashing
         original_text_id = text_id
         if self.__encrypted:
-            text_id = await self.__encrypt_text_id(text_id)
+            text_id = await self.__calculate_hash(text_id)
 
         async with self.session as session:
             text = await session.run_sync(
@@ -455,7 +449,7 @@ class Database:
             )
 
         if not text:
-            return False
+            raise ValueError(f"Unable to find matching text. Text ID: {original_text_id}")
 
         async with self.session as session:
             async with session.begin():
@@ -467,8 +461,6 @@ class Database:
                     raise RuntimeError(error) from error
 
         LOGGER.debug("Text deleted from the database. Text ID: %s", original_text_id)
-
-        return True
 
     async def purge_expired(self, days: int) -> int:
         """
@@ -483,6 +475,8 @@ class Database:
         --------
         int: amount of Texts that have been deleted
         """
+        if not self.session:
+            raise BrokenPipeError("Not connected to the database")  # NOSONAR
 
         expire_date = datetime.now() - timedelta(days)
 
