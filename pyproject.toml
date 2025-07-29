@@ -14,7 +14,7 @@ packages = [{include = "pastrami"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-uvicorn = "^0.34.0"
+uvicorn = "^0.35.0"
 fastapi = ">=0.9.0"
 SQLAlchemy = "^2.0.36"
 pydantic = "^2.9.2"
@@ -25,7 +25,8 @@ cryptography = "^45.0.2"
 asyncpg = "^0.30.0"
 pydantic-settings = "^2.6.0"
 email-validator = "^2.2.0"
-lxml = "^5.3.2"
+lxml = "^6.0.0"
+pydantic-core = "^2.37.2"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "^7.0.0"
