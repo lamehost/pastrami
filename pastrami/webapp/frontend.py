@@ -201,7 +201,7 @@ def create_frontend(settings: Settings) -> APIRouter:
                 # Render ash HTML (default)
                 return templates.TemplateResponse(
                     request,
-                    "index.html.jinja2",
+                    "viewer.jinja2",
                     {"request": request, "maxlength": settings.maxlength, "text": text},
                     headers=headers,
                 )
@@ -216,7 +216,7 @@ def create_frontend(settings: Settings) -> APIRouter:
 
         return templates.TemplateResponse(
             request,
-            "index.html.jinja2",
+            "editor.jinja2",
             {"request": request, "maxlength": settings.maxlength, "text": False},
         )
 

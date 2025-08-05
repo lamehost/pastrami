@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+
+    <!--
+    MIT License
+
+    Copyright (c) 2025, Marco Marzetti <marco@lamehost.it>
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE
+    -->
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pastrami</title>
+    <link href="static/bootstrap@5.3.7.min.css" rel="stylesheet"
+        integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr">
+    <link rel="stylesheet" href="static/github.min.css"
+        integrity="sha512-0aPQyyeZrWj9sCA46UlmWgKOP0mUipLQ6OZXu8l4IcAmD2u31EPEy9VcIMvl7SoAaKe8bLXZhYoMaE/in+gcgA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer">
+    <style>
+        /* Reset the styling of the textarea object */
+        textarea {
+            resize: none;
+        }
+
+        textarea:focus {
+            outline: none !important;
+            box-shadow: none !important;
+        }
+    </style>
+</head>
+
+<body class="min-vh-100 mh-100">
+    <div class="container-fluid min-vh-100 mh-100 d-flex flex-column">
+        <div class="row flex-grow-1">
+            <div class="col d-flex">
+                <pre
+                    class="mh-100 h-100 flex-fill"><code id="text">{{text["content"]}}</code></pre>
+            </div>
+        </div>
+        <nav class="navbar bg-body user-select-none">
+            <div class="container-fluid">
+                <small class="navbar-text" id="stats"></small>
+                <form>
+                    <div class="dropup dropup-center">
+                        <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                            aria-expanded="false">
+                            Format as
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a id="format_as_json" class="dropdown-item" href="#">JSON</a></li>
+                            <li><a id="format_as_markdown" class="dropdown-item" href="#">Markdown</a></li>
+                            <li><a id="format_as_text" class="dropdown-item" href="#">Text</a></li>
+                            <li><a id="format_as_xml" class="dropdown-item" href="#">XML</a></li>
+                        </ul>
+                    </div>
+                </form>
+            </div>
+        </nav>
+    </div>
+
+    <script src="static/jquery-3.7.1.min.js"
+        integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs"
+        crossorigin="anonymous"></script>
+    <script src="static/bootstrap@5.3.7.bundle.min.js"
+        integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q"
+        crossorigin="anonymous"></script>
+    <script src="static/highlight.min.js"
+        integrity="sha512-EBLzUL8XLl+va/zAsmXwS7Z2B1F9HUHkZwyS/VKwh3S7T/U0nF4BaU29EP/ZSf6zgiIxYAnKLu6bJ8dqpmX5uw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <script>
+        // Without decoupling the code for Jinja from JS the code beautifiers freak out
+        var MAXLENGTH = {{ maxlength }};
+
+        function calculateStats(text) {
+            var characters = text.length;
+            var lines = 0;
+            var words = 0;
+
+            if (characters) {
+                words = text.trim().split(/\s+/).length;
+                lines = text.split("\n").length;
+            }
+
+            return [lines, words, characters];
+        }
+
+        function updateStats(text) {
+            var characters;
+            var lines;
+            var words;
+
+            [lines, words, characters] = calculateStats(text);
+
+            $("#stats").html(
+                "Lines: " + lines + " - Words: " + words + " - Characters: " + characters
+            );
+
+            if (characters > MAXLENGTH) {
+                $("#stats").css("color", "crimson");
+                $("#save").prop("disabled", true);
+            } else {
+                $("#stats").css("color", "gray");
+                $("#save").prop("disabled", false);
+            }
+        }
+
+        $(document).ready(function () {
+            var text = $("code#text").html();
+
+            if (text) {
+                // Calculate stats
+                updateStats(text);
+                // Beautify code
+                hljs.highlightAll();
+            } else {
+                // Set focus on textarea
+                $("textarea#text").focus();
+            }
+
+            // Set menu links
+            $("#format_as_json").attr("href", document.location.pathname + ".json");
+            $("#format_as_markdown").attr("href", document.location.pathname + ".md");
+            $("#format_as_text").attr("href", document.location.pathname + ".txt");
+            $("#format_as_xml").attr("href", document.location.pathname + ".xml");
+        });
+    </script>
+</body>
+
+</html>
