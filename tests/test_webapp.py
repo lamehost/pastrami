@@ -42,7 +42,7 @@ class TestWebApp(unittest.TestCase):
             response = client.post("/", json={"content": "FooBar"})
             text = response.json()
             response = client.get(f"/{text['text_id']}")
-            self.assertIn('<pre class="prettyprint linenums:1">FooBar</pre>', response.text)
+            self.assertIn('<code id="text">FooBar</code>', response.text)
 
     def test_api_methods(self):
         with TestClient(self.app) as client:
