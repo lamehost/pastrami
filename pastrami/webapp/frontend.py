@@ -167,9 +167,12 @@ def create_frontend(settings: Settings) -> APIRouter:
             extension = False
 
         # Get text from database
-        text = await database.get_text(text_id)
-        if not text:
-            raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
+        try:
+            text = await database.get_text(text_id)
+        except ValueError as error:
+            raise HTTPException(
+                status_code=404, detail=f"Unable to find text: {text_id}"
+            ) from error
 
         # Add META
         expires = text["created"] + datetime.timedelta(days=settings.dayspan)
