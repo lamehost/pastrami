@@ -101,7 +101,8 @@ class PrettyXMLResponse(Response):
                 status_code=406, detail="This content is not XML serializable"
             ) from error
 
-        return etree.indent(etree.tostring(data), space="    ").encode("utf-8")
+        etree.indent(data, space="    ")
+        return etree.tostring(data)
 
 
 def create_frontend(settings: Settings) -> APIRouter:
