@@ -1,3 +1,2 @@
 /* SITE */                  
-Software: Pastrami
-Software repository: https://github.com/lamehost/pastrami
+Software: Pastrami | https://github.com/lamehost/pastrami
