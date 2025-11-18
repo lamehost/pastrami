@@ -1,6 +1,6 @@
 # Pastrami
 
- ![Pastrami logo](pastrami.png)
+ ![Pastrami logo](pastrami.svg)
 
 Pastrami is a secure, minimalist text storage for your sensitive data. It is designed to provide a quick and efficient way to store sensitive information, ensuring that each piece of data is encrypted using its own unique item ID as the encryption key. 
 
