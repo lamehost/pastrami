@@ -24,7 +24,7 @@
 Implemente the API backend methods
 """
 
-import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from uuid import uuid4
 
@@ -67,7 +67,7 @@ def create_api(settings: Settings) -> APIRouter:
         },
         tags=["API"],
     )
-    async def add_text(
+    async def add_text(  # pyright: ignore[reportUnusedFunction]
         response: Response,
         text: TextSchema,
         database: Database = Depends(Database(**settings.database.model_dump())),
@@ -91,7 +91,8 @@ def create_api(settings: Settings) -> APIRouter:
         text = TextSchema.model_validate(await database.add_text(Text(**text.model_dump())))
 
         # Add META
-        expires = text.created + datetime.timedelta(days=settings.dayspan)  # type: ignore
+        text.created = text.created or datetime.now(timezone.utc)
+        expires = text.created + timedelta(days=settings.dayspan)
         response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")  # NOSONAR
 
         return text
@@ -106,7 +107,7 @@ def create_api(settings: Settings) -> APIRouter:
         },
         tags=["API"],
     )
-    async def get_metadata(
+    async def get_metadata(  # pyright: ignore[reportUnusedFunction]
         response: Response,
         text_id: Annotated[str, Path(description="Task identifier", examples=[str(uuid4())])],
         database: Database = Depends(Database(**settings.database.model_dump())),
@@ -129,7 +130,7 @@ def create_api(settings: Settings) -> APIRouter:
             ) from error
 
         # Populate meta
-        expires = text["created"] + datetime.timedelta(days=settings.dayspan)
+        expires = text["created"] + timedelta(days=settings.dayspan)
         response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")  # NOSONAR
         response.status_code = 204
 
@@ -143,7 +144,7 @@ def create_api(settings: Settings) -> APIRouter:
         },
         tags=["API"],
     )
-    async def get_text(
+    async def get_text(  # pyright: ignore[reportUnusedFunction]
         response: Response,
         text_id: Annotated[str, Path(description="Task identifier", examples=[str(uuid4())])],
         database: Database = Depends(Database(**settings.database.model_dump())),
@@ -166,7 +167,7 @@ def create_api(settings: Settings) -> APIRouter:
             ) from error
 
         # Add META
-        expires = text["created"] + datetime.timedelta(days=settings.dayspan)
+        expires = text["created"] + timedelta(days=settings.dayspan)
         response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")  # NOSONAR
 
         return TextSchema(
@@ -185,7 +186,7 @@ def create_api(settings: Settings) -> APIRouter:
         },
         tags=["API"],
     )
-    async def delete_text(
+    async def delete_text(  # pyright: ignore[reportUnusedFunction]
         text_id: Annotated[str, Path(description="Task identifier", examples=[str(uuid4())])],
         database: Database = Depends(Database(**settings.database.model_dump())),
     ) -> None:

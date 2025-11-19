@@ -37,8 +37,8 @@ import hashlib
 import json
 import logging
 import sqlite3
-from datetime import datetime, timedelta
-from typing import Tuple, TypedDict
+from datetime import datetime, timedelta, timezone
+from typing import Any, Callable, Tuple, TypedDict
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -65,10 +65,12 @@ class TextModel(BASE):
     text_id = Column(String(), primary_key=True, default=lambda: str(uuid4()))
     salt = Column(String(), nullable=True)
     content = Column(String(), nullable=False)
-    created = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created = Column(
+        DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc)
+    )
 
     @validates("text_id")
-    def validate_text_id(self, _, text_id) -> str:
+    def validate_text_id(self, _, text_id: str) -> str:
         """
         Validates text_id length
 
@@ -88,7 +90,7 @@ class TextModel(BASE):
         return text_id
 
     @validates("content")
-    def validate_content(self, _, content) -> str:
+    def validate_content(self, _, content: str) -> str:
         """
         Validates content length
 
@@ -162,12 +164,17 @@ class Database:
     ) -> None:
         self.__encrypted = encrypted
 
-        parsed_url = urlparse(url)
-        self.__create = create
-        self.__engine_kwargs = {
+        self.__create: bool = create
+
+        json_serializer: Callable[[Any], str] = lambda obj: json.dumps(
+            obj, ensure_ascii=False, default=str
+        )
+        self.__engine_kwargs: dict[str, Any] = {
             "echo": echo,
-            "json_serializer": lambda obj: json.dumps(obj, ensure_ascii=False, default=str),
+            "json_serializer": json_serializer,
         }
+
+        parsed_url = urlparse(url)
         if parsed_url.scheme.lower() == "postgresql":
             self.url = f"postgresql+asyncpg://{parsed_url.netloc}"
         elif parsed_url.scheme.lower() == "sqlite":
@@ -202,7 +209,7 @@ class Database:
         await self.connect()
         return self
 
-    async def __aexit__(self, *args, **kwargs):
+    async def __aexit__(self, *args: Tuple[Any], **kwargs: dict[Any, Any]):
         await self.disconnect()
 
     async def connect(self) -> None:

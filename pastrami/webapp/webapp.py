@@ -26,9 +26,9 @@ API and web frontend for the application.
 """
 
 import os
-from typing import Callable, Optional
+from typing import Callable, Coroutine, Optional
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.staticfiles import StaticFiles
 
@@ -79,7 +79,7 @@ def create_app(settings: Optional[Settings] = None):
     if settings.docs:
 
         @webapp.get("/docs", include_in_schema=False)
-        async def swagger_ui_html():
+        async def swagger_ui_html():  # pyright: ignore[reportUnusedFunction]
             return get_swagger_ui_html(
                 openapi_url="/openapi.json",
                 title="Pastrami",
@@ -89,8 +89,10 @@ def create_app(settings: Optional[Settings] = None):
     # Add custom headers as recommended by
     # https://github.com/shieldfy/API-Security-Checklist#output
     @webapp.middleware("http")
-    async def add_custom_headers(request: Request, call_next: Callable):
-        response = await call_next(request)
+    async def add_custom_headers(  # pyright: ignore[reportUnusedFunction]
+        request: Request, call_next: Callable[[Request], Coroutine[None, None, Response]]
+    ) -> Response:
+        response: Response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "deny"
         # Force restrictive content-security-policy for JSON content

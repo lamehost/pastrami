@@ -27,7 +27,7 @@ Implemente the web frontend
 import json
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Optional, Union
+from typing import Annotated, Optional, Union, no_type_check
 from uuid import uuid4
 
 import markdown
@@ -43,9 +43,8 @@ from fastapi import (
 )
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
-from lxml import etree
+from lxml import etree  # type: ignore
 from pydantic import StringConstraints
-from starlette.templating import _TemplateResponse
 
 from pastrami.database import Database, Text
 from pastrami.settings import Settings
@@ -89,7 +88,9 @@ class PrettyXMLResponse(Response):
 
     media_type = "text/xml"
 
+    @no_type_check
     def render(self, content: str) -> bytes:
+        # pylint: disable=c-extension-no-member
         """
         Renders content as prettified XML.
 
@@ -103,11 +104,9 @@ class PrettyXMLResponse(Response):
         bytes: The prettified XML encoded as UTF-8
         """
         try:
-            parser = etree.XMLParser(
-                remove_blank_text=True
-            )  # pylint: disable=c-extension-no-member
-            data = etree.XML(content, parser)  # pylint: disable=c-extension-no-member
-        except etree.XMLSyntaxError as error:  # pylint: disable=c-extension-no-member
+            parser = etree.XMLParser(remove_blank_text=True)
+            data = etree.XML(content, parser)
+        except etree.XMLSyntaxError as error:
             raise HTTPException(
                 status_code=406, detail="This content is not XML serializable"
             ) from error
@@ -134,12 +133,12 @@ def create_frontend(settings: Settings) -> APIRouter:
     APIRouter: APIRouter instance
     """
 
-    frontend = APIRouter()
-
-    # Default web page
     app_directory = os.path.dirname(os.path.realpath(__file__))
     templates = Jinja2Templates(directory=os.path.join(app_directory, "templates"))
 
+    frontend = APIRouter()
+
+    # Default web page
     @frontend.put(
         "/{text_id}",
         response_model=None,
@@ -151,7 +150,7 @@ def create_frontend(settings: Settings) -> APIRouter:
         },
         tags=["Frontend"],
     )
-    async def add_text(
+    async def add_text(  # pyright: ignore[reportUnusedFunction]
         response: Response,
         text_id: Annotated[str, Path(description="Task identifier", examples=[str(uuid4())])],
         body: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Body(
@@ -177,26 +176,27 @@ def create_frontend(settings: Settings) -> APIRouter:
                 status_code=406, detail=f"Text is longer than {settings.maxlength} chars."
             )
 
+        created = created or datetime.now(timezone.utc)
+
         # Add Text
         text = TextSchema.model_validate(
             await database.add_text(Text(text_id=text_id, content=body, created=created))
         )
 
         # Add META
-        expires = text.created + timedelta(days=settings.dayspan)  # type: ignore
+        expires = created + timedelta(days=settings.dayspan)
         response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")  # NOSONAR
 
         return text
 
     @frontend.get("/{text_id}", tags=["Frontend"], response_model=None)
-    async def show_text_in_web_page(
+    async def show_text_in_web_page(  # pyright: ignore[reportUnusedFunction]
         request: Request,
         text_id: Annotated[str, Path(description="Task identifier", examples=[str(uuid4())])],
         database: Database = Depends(Database(**settings.database.model_dump())),
     ) -> Union[
         PlainTextResponse,
         HTMLResponse,
-        _TemplateResponse,
         PrettyJSONResponse,
         PrettyXMLResponse,
         None,
@@ -267,7 +267,7 @@ def create_frontend(settings: Settings) -> APIRouter:
                 )
 
     @frontend.get("/", tags=["Frontend"], response_model=None)
-    async def show_web_page(
+    async def show_web_page(  # pyright: ignore[reportUnusedFunction]
         request: Request,
     ) -> HTMLResponse:
         """
