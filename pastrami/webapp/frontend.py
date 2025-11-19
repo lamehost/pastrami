@@ -244,7 +244,9 @@ def create_frontend(settings: Settings) -> APIRouter:
                 return PrettyJSONResponse(content=text["content"], headers=headers)
             case "md":
                 # Render as markdown
-                text["content"] = markdown.markdown(str(text["content"]), extensions=["tables"])
+                text["content"] = markdown.markdown(
+                    str(text["content"]), extensions=["extra", "codehilite", "sane_lists", "toc"]
+                )
                 return templates.TemplateResponse(
                     request,
                     "markdown.jinja2",
