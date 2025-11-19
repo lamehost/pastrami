@@ -29,6 +29,7 @@ import os
 from typing import Callable, Optional
 
 from fastapi import FastAPI, Request
+from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.staticfiles import StaticFiles
 
 from pastrami.__about__ import __version__ as VERSION
@@ -63,9 +64,8 @@ def create_app(settings: Optional[Settings] = None):
         settings = Settings()  # type: ignore
 
     # Create root webapp
-    docs_url = "/docs" if settings.docs else None
     webapp = FastAPI(
-        docs_url=docs_url,
+        docs_url=None,
         contact={
             "name": settings.contact.name,
             "url": settings.contact.url,
@@ -75,6 +75,16 @@ def create_app(settings: Optional[Settings] = None):
         description="Secure, minimalist text storage for your sensitive data",
         version=VERSION,
     )
+
+    if settings.docs:
+
+        @webapp.get("/docs", include_in_schema=False)
+        async def swagger_ui_html():
+            return get_swagger_ui_html(
+                openapi_url="/openapi.json",
+                title="Pastrami",
+                swagger_favicon_url="static/pastrami.svg",
+            )
 
     # Add custom headers as recommended by
     # https://github.com/shieldfy/API-Security-Checklist#output
