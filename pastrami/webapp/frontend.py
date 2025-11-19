@@ -24,21 +24,32 @@
 Implemente the web frontend
 """
 
-import datetime
 import json
 import os
-from typing import Annotated, Union
+from datetime import datetime, timedelta, timezone
+from typing import Annotated, Optional, Union
 from uuid import uuid4
 
 import markdown
-from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    HTTPException,
+    Path,
+    Query,
+    Request,
+    Response,
+)
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 from lxml import etree
+from pydantic import StringConstraints
 from starlette.templating import _TemplateResponse
 
-from pastrami.database import Database
+from pastrami.database import Database, Text
 from pastrami.settings import Settings
+from pastrami.webapp.schema import TextSchema
 
 
 class PrettyJSONResponse(Response):
@@ -129,6 +140,54 @@ def create_frontend(settings: Settings) -> APIRouter:
     app_directory = os.path.dirname(os.path.realpath(__file__))
     templates = Jinja2Templates(directory=os.path.join(app_directory, "templates"))
 
+    @frontend.put(
+        "/{text_id}",
+        response_model=None,
+        responses={
+            200: {"description": "Success"},
+            400: {"description": "Bad request"},
+            422: {"description": "Unprocessable entity"},
+            503: {"description": "Transient error"},
+        },
+        tags=["Frontend"],
+    )
+    async def add_text(
+        response: Response,
+        text_id: Annotated[str, Path(description="Task identifier", examples=[str(uuid4())])],
+        body: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Body(
+            ..., description="Text content", media_type="text/plain"
+        ),
+        created: Optional[datetime] = Query(
+            description="Last moment the text was created",
+            default_factory=lambda: datetime.now(timezone.utc),
+        ),
+        database: Database = Depends(Database(**settings.database.model_dump())),
+    ) -> TextSchema:
+        """
+        **Add text.**
+
+        Stores text within the database. The `text_id` field and the `body` are mandatory.
+        If a `text_id` is not provided, the system will automatically generate a UUID.
+        """
+        # Delete stale Texts
+        await database.purge_expired(settings.dayspan)
+
+        if len(body) >= settings.maxlength:
+            raise HTTPException(
+                status_code=406, detail=f"Text is longer than {settings.maxlength} chars."
+            )
+
+        # Add Text
+        text = TextSchema.model_validate(
+            await database.add_text(Text(text_id=text_id, content=body, created=created))
+        )
+
+        # Add META
+        expires = text.created + timedelta(days=settings.dayspan)  # type: ignore
+        response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")  # NOSONAR
+
+        return text
+
     @frontend.get("/{text_id}", tags=["Frontend"], response_model=None)
     async def show_text_in_web_page(
         request: Request,
@@ -176,7 +235,7 @@ def create_frontend(settings: Settings) -> APIRouter:
             ) from error
 
         # Add META
-        expires = text["created"] + datetime.timedelta(days=settings.dayspan)
+        expires = text["created"] + timedelta(days=settings.dayspan)
         headers = {"expires": expires.strftime("%a, %d %b %Y %H:%M:%S GMT")}  # NOSONAR
 
         match extension:
@@ -185,7 +244,7 @@ def create_frontend(settings: Settings) -> APIRouter:
                 return PrettyJSONResponse(content=text["content"], headers=headers)
             case "md":
                 # Render as markdown
-                text["content"] = markdown.markdown(str(text["content"]), extensions=['tables'])
+                text["content"] = markdown.markdown(str(text["content"]), extensions=["tables"])
                 return templates.TemplateResponse(
                     request,
                     "markdown.jinja2",
