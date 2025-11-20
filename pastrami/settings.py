@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     docs: bool = False
 
     # Loglevel
-    loglevel: LogLevelEnums = LogLevelEnums.INFO
+    loglevel: LogLevelEnums = LogLevelEnums.WARNING
 
     model_config = SettingsConfigDict(
         extra="forbid", env_file="pastrami.conf", env_prefix="pastrami_", env_nested_delimiter="_"
