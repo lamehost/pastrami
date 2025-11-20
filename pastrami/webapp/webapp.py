@@ -42,8 +42,6 @@ from .frontend import create_frontend
 
 LOGGER = logging.getLogger(__name__)
 
-# Background tasks idle time
-BACKGROUD_IDLE = 60
 
 
 def create_app(settings: Optional[Settings] = None):
@@ -88,7 +86,7 @@ def create_app(settings: Optional[Settings] = None):
         title="Pastrami",
         description="Secure, minimalist text storage for your sensitive data",
         version=VERSION,
-        lifespan=lambda _: background_tasks(settings=settings, idle=BACKGROUD_IDLE),
+        lifespan=lambda _: background_tasks(settings=settings),
     )
 
     if settings.docs:

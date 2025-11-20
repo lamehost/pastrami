@@ -49,25 +49,30 @@ def signal_handler(signum: int) -> None:
             raise KeyboardInterrupt
 
 
-async def purge_expired(settings: Settings) -> None:
+async def purge_expired(settings: Settings, idle: int = 60) -> None:
     """
-    Purges stales Texts from the database
+    Infinite loop that purges stales Texts from the database.
 
     Arguments:
     ----------
     settings: Settings:
         App wide settings
+    idle: int
+        Wait time between loops in seconds. Default: 60
     """
-    try:
-        async with Database(**settings.database.model_dump()) as database:
-            LOGGER.info("Purging expired texts")
-            await database.purge_expired(settings.dayspan)
-    except BrokenPipeError as error:
-        LOGGER.warning(str(error))
+    while True:
+        try:
+            async with Database(**settings.database.model_dump()) as database:
+                LOGGER.info("Purging expired texts")
+                await database.purge_expired(settings.dayspan)
+        except BrokenPipeError as error:
+            LOGGER.warning(str(error))
+
+        await asyncio.sleep(idle)
 
 
 @asynccontextmanager
-async def background_tasks(settings: Settings, idle: int = 60):
+async def background_tasks(settings: Settings):
     """
     Starts when the webapp boots. Everything before `yield` is executed immediatelly.
     Everything after `yield` is executed right before the webapp is shutting down.
@@ -76,8 +81,6 @@ async def background_tasks(settings: Settings, idle: int = 60):
     ----------
     settings: Settings
         App wide settings
-    idle: int
-        Wait time between loops in seconds. Default: 60
     """
     try:
         # This feels hacky and I hate it, but i couldn't find any better ways
@@ -89,9 +92,7 @@ async def background_tasks(settings: Settings, idle: int = 60):
         )
         yield
         return
-
-    while True:
-        asyncio.create_task(purge_expired(settings))  # NOSONAR
-        await asyncio.sleep(idle)
-
+    
+    _ = asyncio.create_task(purge_expired(settings=settings, idle=60))
+    
     yield
