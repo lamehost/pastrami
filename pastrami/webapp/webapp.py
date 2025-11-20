@@ -34,13 +34,16 @@ from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.staticfiles import StaticFiles
 
 from pastrami.__about__ import __version__ as VERSION
-from pastrami.background import background_tasks
 from pastrami.settings import Settings
+from pastrami.webapp.background import background_tasks
 
 from .api import create_api
 from .frontend import create_frontend
 
 LOGGER = logging.getLogger(__name__)
+
+# Background tasks idle time
+BACKGROUD_IDLE = 60
 
 
 def create_app(settings: Optional[Settings] = None):
@@ -63,6 +66,7 @@ def create_app(settings: Optional[Settings] = None):
     --------
     Fastapi: FastAPI app instance
     """
+
     # Read settings
     if not settings:
         settings = Settings()  # type: ignore
@@ -84,7 +88,7 @@ def create_app(settings: Optional[Settings] = None):
         title="Pastrami",
         description="Secure, minimalist text storage for your sensitive data",
         version=VERSION,
-        lifespan=lambda _: background_tasks(settings),
+        lifespan=lambda _: background_tasks(settings=settings, idle=BACKGROUD_IDLE),
     )
 
     if settings.docs:

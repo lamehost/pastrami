@@ -67,7 +67,7 @@ async def purge_expired(settings: Settings) -> None:
 
 
 @asynccontextmanager
-async def background_tasks(settings: Settings):
+async def background_tasks(settings: Settings, idle: int = 60):
     """
     Starts when the webapp boots. Everything before `yield` is executed immediatelly.
     Everything after `yield` is executed right before the webapp is shutting down.
@@ -76,6 +76,8 @@ async def background_tasks(settings: Settings):
     ----------
     settings: Settings
         App wide settings
+    idle: int
+        Wait time between loops in seconds. Default: 60
     """
     try:
         # This feels hacky and I hate it, but i couldn't find any better ways
@@ -89,7 +91,7 @@ async def background_tasks(settings: Settings):
         return
 
     while True:
-        await purge_expired(settings)
-        await asyncio.sleep(60)
+        asyncio.create_task(purge_expired(settings))  # NOSONAR
+        await asyncio.sleep(idle)
 
     yield
