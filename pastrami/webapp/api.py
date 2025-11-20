@@ -79,9 +79,6 @@ def create_api(settings: Settings) -> APIRouter:
         `text_id` and `content` fields are mandatory. If a `text_id` is not provided, the system
         will automatically generate a UUID.
         """
-        # Delete stale Texts
-        await database.purge_expired(settings.dayspan)
-
         if len(text.content) >= settings.maxlength:
             raise HTTPException(
                 status_code=406, detail=f"Text is longer than {settings.maxlength} chars."
@@ -118,9 +115,6 @@ def create_api(settings: Settings) -> APIRouter:
         Retrieves the metadata associated with the text matching with `text_id`. Values are
         serialized as HTTP headers.
         """
-        # Delete stale Texts
-        await database.purge_expired(settings.dayspan)
-
         # Get text
         try:
             text = await database.get_text(text_id)
@@ -155,9 +149,6 @@ def create_api(settings: Settings) -> APIRouter:
         Retrieves the Text object associated with `text_id`. Unlike the corresponding frontend
         method, this function directly returns the JSON object.
         """
-        # Delete stale Texts
-        await database.purge_expired(settings.dayspan)
-
         # Get text
         try:
             text = await database.get_text(text_id)

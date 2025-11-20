@@ -168,9 +168,6 @@ def create_frontend(settings: Settings) -> APIRouter:
         Stores text within the database. The `text_id` field and the `body` are mandatory.
         If a `text_id` is not provided, the system will automatically generate a UUID.
         """
-        # Delete stale Texts
-        await database.purge_expired(settings.dayspan)
-
         if len(body) >= settings.maxlength:
             raise HTTPException(
                 status_code=406, detail=f"Text is longer than {settings.maxlength} chars."
@@ -213,9 +210,6 @@ def create_frontend(settings: Settings) -> APIRouter:
          - **.txt**: Text file
          - **.xml**: Prettified XML object
         """
-        # Delete stale Texts
-        await database.purge_expired(settings.dayspan)
-
         # Ignore common requests
         if text_id in ["favicon.ico", "index.html", "index.php"]:
             raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")

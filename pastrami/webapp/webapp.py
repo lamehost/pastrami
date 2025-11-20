@@ -73,8 +73,11 @@ async def purge_expired(settings: Settings) -> None:
         App wide settings
     """
     LOGGER.info("Purging expired texts...")
-    async with Database(**settings.database.model_dump()) as database:
-        await database.purge_expired(settings.dayspan)
+    try:
+        async with Database(**settings.database.model_dump()) as database:
+            await database.purge_expired(settings.dayspan)
+    except BrokenPipeError as error:
+        logger.WARNING(str(error))
 
 
 @asynccontextmanager
