@@ -25,7 +25,12 @@ This module provides `create_app` which is a FastAPI app factory that provide
 API and web frontend for the application.
 """
 
+import asyncio
+import logging
 import os
+import signal
+from contextlib import asynccontextmanager
+from types import FrameType
 from typing import Callable, Coroutine, Optional
 
 from fastapi import FastAPI, Request, Response
@@ -33,10 +38,64 @@ from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.staticfiles import StaticFiles
 
 from pastrami.__about__ import __version__ as VERSION
+from pastrami.database import Database
 from pastrami.settings import Settings
 
 from .api import create_api
 from .frontend import create_frontend
+
+LOGGER = logging.getLogger(__name__)
+
+
+def signal_handler(signum: int, frame: FrameType | None) -> None:
+    """
+    Handles signals
+
+    Arguments:
+    ----------
+    signum: int
+        The signal number
+    frame: FrameType | None
+        The frame object (currently ignored)
+    """
+    match signum:  # pyright: ignore[reportMatchNotExhaustive]
+        case signal.SIGINT:
+            raise KeyboardInterrupt
+
+
+async def purge_expired(settings: Settings) -> None:
+    """
+    Purges stales Texts from the database
+
+    Arguments:
+    ----------
+    settings: Settings:
+        App wide settings
+    """
+    LOGGER.info("Purging expired texts...")
+    async with Database(**settings.database.model_dump()) as database:
+        await database.purge_expired(settings.dayspan)
+
+
+@asynccontextmanager
+async def lifespan(settings: Settings):
+    """
+    Starts when the webapp boots. Everything before `yield` is executed immediatelly.
+    Everything after `yield` is executed right before the webapp is shutting down.
+
+    Arguments:
+    ----------
+    settings: Settings
+        App wide settings
+    """
+    # This feels hacky and I hate it, but it's the best way of doing it i was able to come up with
+    signal.signal(signal.SIGINT, signal_handler)
+
+    while True:
+        await purge_expired(settings)
+        await asyncio.sleep(60)
+
+    yield
 
 
 def create_app(settings: Optional[Settings] = None):
@@ -74,6 +133,7 @@ def create_app(settings: Optional[Settings] = None):
         title="Pastrami",
         description="Secure, minimalist text storage for your sensitive data",
         version=VERSION,
+        lifespan=lambda _: lifespan(settings),
     )
 
     if settings.docs:
