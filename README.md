@@ -36,9 +36,10 @@ positional arguments:
 
 options:
   -h, --help   show this help message and exit
-  -d, --debug  Turns uviconr debugging on
+  -d, --debug  Enables uvicorn debugging
 
 Configuration file name is hardcoded: pastrami.conf
+These settings are passed directly to uvicorn. The app is configured through pastrami.conf.
 ```
 
 ## Docker

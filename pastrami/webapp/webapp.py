@@ -47,7 +47,7 @@ from .frontend import create_frontend
 LOGGER = logging.getLogger(__name__)
 
 
-def signal_handler(signum: int, frame: FrameType | None) -> None:
+def signal_handler(signum: int, _: FrameType | None) -> None:
     """
     Handles signals
 
@@ -55,7 +55,7 @@ def signal_handler(signum: int, frame: FrameType | None) -> None:
     ----------
     signum: int
         The signal number
-    frame: FrameType | None
+    _: FrameType | None
         The frame object (currently ignored)
     """
     match signum:  # pyright: ignore[reportMatchNotExhaustive]
@@ -72,12 +72,12 @@ async def purge_expired(settings: Settings) -> None:
     settings: Settings:
         App wide settings
     """
-    LOGGER.info("Purging expired texts...")
     try:
         async with Database(**settings.database.model_dump()) as database:
+            LOGGER.info("Purging expired texts")
             await database.purge_expired(settings.dayspan)
     except BrokenPipeError as error:
-        logger.WARNING(str(error))
+        LOGGER.warning(str(error))
 
 
 @asynccontextmanager
@@ -124,6 +124,12 @@ def create_app(settings: Optional[Settings] = None):
     # Read settings
     if not settings:
         settings = Settings()  # type: ignore
+
+    # Init logging
+    logging.basicConfig(
+        level=getattr(logging, settings.loglevel),
+        format="%(levelname)-9s %(name)s -> %(message)s",
+    )
 
     # Create root webapp
     webapp = FastAPI(

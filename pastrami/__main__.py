@@ -42,7 +42,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         prog="pastrami",
         description="A lightweight solution for securely storing encrypted text.",
-        epilog="Configuration file name is hardcoded: pastrami.conf",
+        epilog=(
+            "Configuration file name is hardcoded: pastrami.conf.\n"
+            "These settings are passed directly to uvicorn. "
+            "The app is configured through pastrami.conf.\n"
+        ),
+        formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument(
         "-d", "--debug", action="store_true", default=False, help="Turns uviconr debugging on"
