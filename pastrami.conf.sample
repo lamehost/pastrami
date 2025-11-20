@@ -16,6 +16,8 @@ pastrami_contact_url = https://www.example.com:8080
 
 # Enable API docs
 pastrami_docs = false
+# Set webapp loglevel
+pastrami_loglevel = WARNING
 # Amount of days texts are retained
 pastrami_dayspan = 90
 # Maximum amount of text characters
