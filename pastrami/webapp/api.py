@@ -87,12 +87,11 @@ def create_api(settings: Settings) -> APIRouter:
         # Overwrite created
         text.created = datetime.now(timezone.utc)
 
-        maxexpires = text.created + timedelta(seconds=settings.expires)
-        text.expires = text.expires or datetime.now(timezone.utc) + timedelta(
-            seconds=settings.expires
-        )
+        # Calculate expire time
+        text.expires = text.expires or text.created + timedelta(seconds=settings.expires)
 
-        if text.expires >= maxexpires:
+        maxexpires = text.created + timedelta(seconds=settings.expires)
+        if text.expires > maxexpires:
             raise HTTPException(
                 status_code=400, detail=f"Maximum expire date and time is {maxexpires}"
             )
