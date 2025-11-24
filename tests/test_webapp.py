@@ -55,7 +55,7 @@ class TestWebApp(unittest.TestCase):
 
             # Create invalid text
             response = client.post("/", json={"content": "Very very long message"})
-            self.assertEqual(response.status_code, 406)
+            self.assertEqual(response.status_code, 400)
 
             # Get existing
             response = client.get(f"/{text['text_id']}/raw")
