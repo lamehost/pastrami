@@ -47,7 +47,7 @@ class LogLevelEnums(str, Enum):
     ERROR = "ERROR"
     WARNING = "WARNING"
     INFO = "INFO"
-    DEBUG = "DEBUG"
+    DEBUG = "DEBUG"  # NOSONAR
 
 
 class Settings(BaseSettings):
