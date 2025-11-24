@@ -31,9 +31,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Pastrami</title>
     <link rel="icon" type="image/svg+xml" href="static/pastrami.svg">
-    <link type="text/plain" rel="author" href="static/humans.txt" />
+    <link type="text/plain" rel="author" href="static/humans.txt">
     <link href="static/bootstrap@5.3.7.min.css" rel="stylesheet"
         integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css"
+        integrity="sha512-MQXduO8IQnJVq1qmySpN87QQkiR1bZHtorbJBD0tzy7/0U9+YIC93QWHeGTEoojMVHWWNkoCp8V6OzVSYrX0oQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer">
+
     <style>
         /* Reset the styling of the textarea object */
         textarea {
@@ -60,9 +65,32 @@
             <div class="container-fluid">
                 <small class="navbar-text" id="stats"></small>
                 <form>
-                    <button type="submit" class="btn btn-outline-primary" id="save" title="Click to save">
-                        <u>S</u>ave
-                    </button>
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-outline-primary" id="save" title="Click to save">
+                            <u>S</u>ave
+                        </button>
+                        <div class="btn-group dropup">
+                            <button type="button" class="btn btn-outline-primary dropdown-toggle"
+                                data-bs-toggle="dropdown" data-bs-auto-close="false" aria-expanded="false">
+                            </button>
+                            <div class="dropdown-menu dropdown-menu-end px-2" style="min-width: 20em;">
+                                <label for="expires" class="form-label">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                                        class="bi bi-calendar2-event" viewBox="0 0 16 16">
+                                        <path
+                                            d="M11 7.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5z" />
+                                        <path
+                                            d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M2 2a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z" />
+                                        <path
+                                            d="M2.5 4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H3a.5.5 0 0 1-.5-.5z" />
+                                    </svg>
+                                    Text expire moment
+                                </label>
+                                <input type="text" class="form-control" placeholder="Pick date and time" id="expires">
+                                <div class="form-text">Timezone is UTC</div>
+                            </div>
+                        </div>
+                    </div>
                 </form>
             </div>
         </nav>
@@ -75,9 +103,14 @@
         integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q"
         crossorigin="anonymous"></script>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"
+        integrity="sha512-K/oyQtMXpxI4+K0W7H25UopjM8pzq0yrVdFdG21Fh5dBe91I40pDd9A4lzNlHPHBIP2cwZuoxaUSX0GJSObvGA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
     <script>
         // Without decoupling the code for Jinja from JS the code beautifiers freak out
-        var MAXLENGTH = {{ maxlength }};
+        var MAXLENGTH = {{ maxlength }};  
+        var MAXEXPIRES = "{{ maxexpires }}";
 
         function calculateStats(text) {
             var characters = text.length;
@@ -113,12 +146,15 @@
         }
 
         function saveContent() {
-            var text;
+            let text;
+            let expires;
 
             text = $("#text").val();
+            expires = $('#expires').get(0)._flatpickr.selectedDates[0];
+
             $.ajax({
                 contentType: "application/json",
-                data: JSON.stringify({ content: text }),
+                data: JSON.stringify({ content: text, expires: expires }),
                 dataType: "json",
                 method: "POST",
                 processData: false,
@@ -166,6 +202,18 @@
             event.preventDefault();
             saveContent();
         });
+
+        $(document).ready(function () {
+            $("#expires").flatpickr(
+                {
+                    enableTime: true,
+                    dateFormat: "Y-m-d H:i",
+                    defaultDate: Date.parse(MAXEXPIRES),
+                    minDate: "today",
+                    time_24hr: true,
+                }
+            );
+        })
     </script>
 </body>
 

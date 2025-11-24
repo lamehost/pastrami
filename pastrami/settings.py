@@ -9,7 +9,9 @@ This module provides data models and methods to read the settings file
 # pylint: disable=too-few-public-methods, no-name-in-module
 
 from enum import Enum
+from typing import Annotated
 
+from annotated_types import Gt
 from pydantic import AnyHttpUrl, EmailStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -57,7 +59,7 @@ class Settings(BaseSettings):
     contact: ContactSettings
 
     # Text specs
-    dayspan: int = 90
+    expires: Annotated[int, Gt(60)] = 7776000  # Seconds
     maxlength: int = 10000
 
     # Activate API docs

@@ -42,9 +42,13 @@ class TextSchema(BaseModel):
         description="Task identifier", default_factory=lambda: str(uuid4()), examples=[str(uuid4())]
     )
     content: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(
-        description="Text content"
+        description="Text content",
     )
     created: Optional[datetime] = Field(
-        description="Last moment the text was created",
+        description="Moment the text was created",
         default_factory=lambda: datetime.now(timezone.utc),
+    )
+    expires: Optional[datetime] = Field(
+        description="Moment the text will expire",
+        default=None,
     )

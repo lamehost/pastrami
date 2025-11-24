@@ -27,6 +27,7 @@ This module defines the background tasks executed by the webapp.
 import asyncio
 import logging
 import signal
+import traceback
 from contextlib import asynccontextmanager
 
 from pastrami.database import Database
@@ -49,6 +50,30 @@ def signal_handler(signum: int) -> None:
             raise KeyboardInterrupt
 
 
+def result_handler(task: asyncio.Task[None]) -> None:
+    """
+    Handles non awaited background tasks
+
+    Arguments:
+    ----------
+    task: asyncio.Task
+        The executed task
+    """
+    try:
+        # Retrieving the result triggers the exception (in case they exist)
+        task.result()
+    except asyncio.CancelledError:
+        pass
+    except Exception:  # pylint: disable=broad-exception-caught
+        LOGGER.critical(
+            "Background task `%s` died due to an unhanlded exception. Exiting...", task.get_name()
+        )
+        LOGGER.debug(traceback.format_exc())
+
+        # This is brutal, but i don't know how to handle it differently
+        asyncio.get_event_loop().stop()
+
+
 async def purge_expired(settings: Settings, idle: int = 60) -> None:
     """
     Infinite loop that purges stales Texts from the database.
@@ -64,7 +89,7 @@ async def purge_expired(settings: Settings, idle: int = 60) -> None:
         try:
             async with Database(**settings.database.model_dump()) as database:
                 LOGGER.info("Purging expired texts")
-                await database.purge_expired(settings.dayspan)
+                await database.purge_expired()
         except BrokenPipeError as error:
             LOGGER.warning(str(error))
 
@@ -92,7 +117,13 @@ async def background_tasks(settings: Settings):
         )
         yield
         return
-    
-    _ = asyncio.create_task(purge_expired(settings=settings, idle=60))
-    
+
+    # Non awaited tasks are executed in the background
+    async_purge_expired = asyncio.create_task(
+        purge_expired(settings=settings, idle=60), name="Purge Expired"
+    )
+    # Asyncronously catch the exceptions
+    async_purge_expired.add_done_callback(result_handler)
+
+    # Return control to FastAPI
     yield

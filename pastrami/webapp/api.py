@@ -75,13 +75,26 @@ def create_api(settings: Settings) -> APIRouter:
         """
         **Add text.**
 
-        Stores text within the database. The text is serialized as a JSON object. Both the
-        `text_id` and `content` fields are mandatory. If a `text_id` is not provided, the system
-        will automatically generate a UUID.
+        Stores text within the database. The text is serialized as a JSON object. The
+        `content` field is mandatory. If a `text_id` is not provided, the system
+        will automatically generate a UUID. The `created` field is always overwritten.
         """
         if len(text.content) >= settings.maxlength:
             raise HTTPException(
-                status_code=406, detail=f"Text is longer than {settings.maxlength} chars."
+                status_code=400, detail=f"Text is longer than {settings.maxlength} chars."
+            )
+
+        # Overwrite created
+        text.created = datetime.now(timezone.utc)
+
+        maxexpires = text.created + timedelta(seconds=settings.expires)
+        text.expires = text.expires or datetime.now(timezone.utc) + timedelta(
+            seconds=settings.expires
+        )
+
+        if text.expires >= maxexpires:
+            raise HTTPException(
+                status_code=400, detail=f"Maximum expire date and time is {maxexpires}"
             )
 
         # Add Text
@@ -89,7 +102,7 @@ def create_api(settings: Settings) -> APIRouter:
 
         # Add META
         text.created = text.created or datetime.now(timezone.utc)
-        expires = text.created + timedelta(days=settings.dayspan)
+        expires = text.created + timedelta(seconds=settings.expires)
         response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")  # NOSONAR
 
         return text
@@ -124,8 +137,9 @@ def create_api(settings: Settings) -> APIRouter:
             ) from error
 
         # Populate meta
-        expires = text["created"] + timedelta(days=settings.dayspan)
-        response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")  # NOSONAR
+        response.headers["expires"] = text["expires"].strftime(
+            "%a, %d %b %Y %H:%M:%S GMT"
+        )  # NOSONAR
         response.status_code = 204
 
     @api.get(
@@ -158,13 +172,15 @@ def create_api(settings: Settings) -> APIRouter:
             ) from error
 
         # Add META
-        expires = text["created"] + timedelta(days=settings.dayspan)
-        response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")  # NOSONAR
+        response.headers["expires"] = text["expires"].strftime(
+            "%a, %d %b %Y %H:%M:%S GMT"
+        )  # NOSONAR
 
         return TextSchema(
             text_id=str(text["text_id"]),
             content=str(text["content"]),
             created=text["created"],
+            expires=text["expires"],
         )
 
     @api.delete(

@@ -43,7 +43,6 @@ from .frontend import create_frontend
 LOGGER = logging.getLogger(__name__)
 
 
-
 def create_app(settings: Optional[Settings] = None):
     """
     FastAPI app factory.

@@ -25,7 +25,7 @@ class TestWebApp(unittest.TestCase):
             # UI,
             "docs": False,
             # Text
-            "dayspan": 1,
+            "expires": 3600,
             "maxlength": 10,
         })
 

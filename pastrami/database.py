@@ -37,7 +37,7 @@ import hashlib
 import json
 import logging
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any, Callable, Tuple, TypedDict
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -68,6 +68,7 @@ class TextModel(BASE):
     created = Column(
         DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc)
     )
+    expires = Column(DateTime, nullable=True)
 
     @validates("text_id")
     def validate_text_id(self, _, text_id: str) -> str:
@@ -119,6 +120,7 @@ class Text(TypedDict):
     text_id: str
     content: str
     created: datetime
+    expires: datetime
 
 
 class DuplicatedItemException(Exception):
@@ -429,7 +431,12 @@ class Database:
 
         LOGGER.debug("Text returned from the database. Text ID: %s", original_text_id)
 
-        return Text(text_id=original_text_id, content=content, created=text.created)  # type: ignore
+        return Text(
+            text_id=original_text_id,
+            content=str(content),
+            created=text.created,  # pyright: ignore[reportArgumentType]
+            expires=text.expires,  # pyright: ignore[reportArgumentType]
+        )
 
     async def delete_text(self, text_id: str):
         """
@@ -469,14 +476,9 @@ class Database:
 
         LOGGER.debug("Text deleted from the database. Text ID: %s", original_text_id)
 
-    async def purge_expired(self, days: int) -> int:
+    async def purge_expired(self) -> int:
         """
         Deletes expired Texts from database
-
-        Arguments:
-        ----------
-        days: int
-            Delete Texts older than `days`
 
         Returns:
         --------
@@ -485,12 +487,10 @@ class Database:
         if not self.session:
             raise BrokenPipeError("Not connected to the database")  # NOSONAR
 
-        expire_date = datetime.now() - timedelta(days)
-
         async with self.session as session:
             texts = await session.run_sync(
                 lambda sync_session: sync_session.query(TextModel)
-                .filter(TextModel.created < expire_date)
+                .filter(TextModel.expires < datetime.now(timezone.utc))
                 .all()
             )
 
@@ -507,6 +507,6 @@ class Database:
                     await session.rollback()
                     raise RuntimeError(error) from error
 
-        LOGGER.debug("Expired text deleted from the database (%d)", len(texts))
+        LOGGER.debug("Expired text deleted from the database: %d", len(texts))
 
         return len(texts)

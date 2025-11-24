@@ -150,15 +150,21 @@ def create_frontend(settings: Settings) -> APIRouter:
         },
         tags=["Frontend"],
     )
-    async def add_text(  # pyright: ignore[reportUnusedFunction]
+    # pylint: disable=too-many-arguments, too-many-positional-arguments
+    async def add_text(  # type: ignore
         response: Response,
         text_id: Annotated[str, Path(description="Task identifier", examples=[str(uuid4())])],
         body: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Body(
             ..., description="Text content", media_type="text/plain"
         ),
         created: Optional[datetime] = Query(
-            description="Last moment the text was created",
+            description="Moment the text was created",
             default_factory=lambda: datetime.now(timezone.utc),
+        ),
+        expires: Optional[datetime] = Query(
+            description="Moment the text will expire",
+            default_factory=lambda: datetime.now(timezone.utc)
+            + timedelta(seconds=settings.expires),
         ),
         database: Database = Depends(Database(**settings.database.model_dump())),
     ) -> TextSchema:
@@ -166,22 +172,23 @@ def create_frontend(settings: Settings) -> APIRouter:
         **Add text.**
 
         Stores text within the database. The `text_id` field and the `body` are mandatory.
-        If a `text_id` is not provided, the system will automatically generate a UUID.
         """
         if len(body) >= settings.maxlength:
             raise HTTPException(
-                status_code=406, detail=f"Text is longer than {settings.maxlength} chars."
+                status_code=400, detail=f"Text is longer than {settings.maxlength} chars."
             )
 
         created = created or datetime.now(timezone.utc)
+        expires = expires or datetime.now(timezone.utc) + timedelta(seconds=settings.expires)
 
         # Add Text
         text = TextSchema.model_validate(
-            await database.add_text(Text(text_id=text_id, content=body, created=created))
+            await database.add_text(
+                Text(text_id=text_id, content=body, created=created, expires=expires)
+            )
         )
 
         # Add META
-        expires = created + timedelta(days=settings.dayspan)
         response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")  # NOSONAR
 
         return text
@@ -229,8 +236,7 @@ def create_frontend(settings: Settings) -> APIRouter:
             ) from error
 
         # Add META
-        expires = text["created"] + timedelta(days=settings.dayspan)
-        headers = {"expires": expires.strftime("%a, %d %b %Y %H:%M:%S GMT")}  # NOSONAR
+        headers = {"expires": text["expires"].strftime("%a, %d %b %Y %H:%M:%S GMT")}  # NOSONAR
 
         match extension:
             case "json":
@@ -270,10 +276,17 @@ def create_frontend(settings: Settings) -> APIRouter:
         **Show default web page.**
         """
 
+        maxexpires = datetime.now(timezone.utc) + timedelta(seconds=settings.expires)
+
         return templates.TemplateResponse(
             request,
             "editor.jinja2",
-            {"request": request, "maxlength": settings.maxlength, "text": False},
+            {
+                "request": request,
+                "maxlength": settings.maxlength,
+                "text": False,
+                "maxexpires": maxexpires,
+            },
         )
 
     return frontend
