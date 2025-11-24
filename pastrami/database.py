@@ -155,7 +155,7 @@ class Database:
              is created
     """
 
-    FERNET_ITERATIONS = 600_000
+    FERNET_ITERATIONS = 1_200_000
 
     def __init__(  # pylint: disable=too-many-positional-arguments too-many-arguments
         self,
