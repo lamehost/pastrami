@@ -1,2 +1,0 @@
-/* SITE */                  
-Software: Pastrami | https://github.com/lamehost/pastrami

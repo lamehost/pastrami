@@ -31,6 +31,7 @@ from typing import Callable, Coroutine, Optional
 
 from fastapi import FastAPI, Request, Response
 from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from pastrami.__about__ import __version__ as VERSION
@@ -87,6 +88,12 @@ def create_app(settings: Optional[Settings] = None):
         version=VERSION,
         lifespan=lambda _: background_tasks(settings=settings),
     )
+
+    @webapp.get("/humans.txt", include_in_schema=False)
+    async def humans_txt():  # pyright: ignore[reportUnusedFunction]
+        return PlainTextResponse(
+            "/* SITE */\nSoftware: Pastrami | https://github.com/lamehost/pastrami"
+        )
 
     if settings.docs:
 
