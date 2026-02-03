@@ -75,6 +75,17 @@
                             </button>
                             <div class="dropdown-menu dropdown-menu-end px-2" style="min-width: 20em;">
                                 <label for="expires" class="form-label">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-text" viewBox="0 0 16 16">
+                                        <path
+                                            d="M5 4a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1zm-.5 2.5A.5.5 0 0 1 5 6h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5M5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1zm0 2a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1z"/>
+                                        <path
+                                            d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2zm10-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1"/>
+                                    </svg>
+                                    Text identifier
+                                </label>
+                                <input type="text" class="form-control" placeholder="Choose a name (max 36 chars)" id="text_id">
+                                <br>
+                                <label for="expires" class="form-label">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
                                         class="bi bi-calendar2-event" viewBox="0 0 16 16">
                                         <path
@@ -84,7 +95,7 @@
                                         <path
                                             d="M2.5 4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H3a.5.5 0 0 1-.5-.5z" />
                                     </svg>
-                                    Text will expire
+                                    Text expires
                                 </label>
                                 <input type="text" class="form-control" placeholder="Pick date and time" id="expires">
                                 <div class="form-text">Timezone is UTC</div>
@@ -150,11 +161,12 @@
             let expires;
 
             text = $("#text").val();
+            text_id = $("#text_id").val();
             expires = $('#expires').get(0)._flatpickr.selectedDates[0];
 
             $.ajax({
                 contentType: "application/json",
-                data: JSON.stringify({ content: text, expires: expires }),
+                data: JSON.stringify({ text_id: text_id, content: text, expires: expires }),
                 dataType: "json",
                 method: "POST",
                 processData: false,
@@ -204,6 +216,7 @@
         });
 
         $(document).ready(function () {
+            $("#text_id").val(self.crypto.randomUUID());
             $("#expires").flatpickr(
                 {
                     enableTime: true,
