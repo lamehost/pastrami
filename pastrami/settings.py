@@ -25,6 +25,7 @@ class DatabaseSettings(BaseSettings):
     create: bool = True
     echo: bool = False
     encrypted: bool = False
+    iterations: int = 1_200_000
 
 
 class ContactSettings(BaseSettings):

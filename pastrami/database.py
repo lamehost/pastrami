@@ -151,11 +151,8 @@ class Database:
         Whether create SQL database and tables or not. Default: False
     encrypted: bool
         Whether encrypt data or not. Default: False
-    session: Session object used to connect to the DB. By default a new one
-             is created
+    iterations: The amount of Fernet iterations to run. Default: 1_200_000
     """
-
-    FERNET_ITERATIONS = 1_200_000
 
     def __init__(  # pylint: disable=too-many-positional-arguments too-many-arguments
         self,
@@ -163,8 +160,10 @@ class Database:
         echo: bool = False,
         create: bool = False,
         encrypted: bool = False,
+        iterations: int = 1_200_000,
     ) -> None:
         self.__encrypted = encrypted
+        self.fernet_iterations = iterations
 
         self.__create: bool = create
 
@@ -290,7 +289,7 @@ class Database:
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt.encode("utf-8"),
-            iterations=self.FERNET_ITERATIONS,
+            iterations=self.fernet_iterations,
         )
         private_key = base64.urlsafe_b64encode(kdf.derive(text_id.encode("utf-8")))
 
@@ -323,7 +322,7 @@ class Database:
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt.encode("utf-8"),
-            iterations=self.FERNET_ITERATIONS,
+            iterations=self.fernet_iterations,
         )
         private_key = base64.urlsafe_b64encode(kdf.derive(text_id.encode("utf-8")))
 

@@ -6,6 +6,8 @@ pastrami_database_create = true
 pastrami_database_echo = false
 # Whether encrypt database content
 pastrami_database_encrypted = true
+# Amount of encryption iterations
+pastrami_database_iterations = 1200000
 
 # API contact name
 pastrami_contact_name = Average Joe
