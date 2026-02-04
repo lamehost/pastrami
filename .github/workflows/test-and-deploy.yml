@@ -8,6 +8,7 @@ on:
 
 env:
   FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+  pastrami_database_secret: ${{ secrets.pastrami_database_secret }}
 
 jobs:
   Test:
