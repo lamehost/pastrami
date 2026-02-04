@@ -295,7 +295,7 @@ class Database:
 
         fernet = Fernet(private_key)
         token = fernet.encrypt(content.encode("utf-8"))
-        encrypted_content = base64.b64encode(token).decode("utf-8")
+        encrypted_content = token.decode("utf-8")
 
         text_id_hash = await self.__calculate_hash(text_id)
 
@@ -327,7 +327,7 @@ class Database:
         private_key = base64.urlsafe_b64encode(kdf.derive(text_id.encode("utf-8")))
 
         fernet = Fernet(private_key)
-        token = base64.b64decode(encrypted_content.encode("utf-8"))
+        token = encrypted_content.encode("utf-8")
         content = fernet.decrypt(token).decode("utf-8")
 
         return content
