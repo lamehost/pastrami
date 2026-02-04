@@ -21,7 +21,7 @@
 # SOFTWARE.
 
 """
-Implemente the web frontend
+Implements the web frontend
 """
 
 import json

@@ -21,7 +21,7 @@
 # SOFTWARE.
 
 """
-Implemente the API backend methods
+Implements the API backend methods
 """
 
 from datetime import datetime, timedelta, timezone
