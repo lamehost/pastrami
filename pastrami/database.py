@@ -250,7 +250,7 @@ class Database:
 
     # Crypto methods
     @staticmethod
-    async def __calculate_hash(text: str) -> str:
+    def __calculate_hash(text: str) -> str:
         """
         Returns the SHA256 has of a text.
 
@@ -300,9 +300,9 @@ class Database:
 
         fernet = Fernet(private_key)
         token = fernet.encrypt(content.encode("utf-8"))
-        encrypted_content = base64.b64encode(token).decode("utf-8")
+        encrypted_content = token.decode("utf-8")
 
-        text_id_hash = await self.__calculate_hash(text_id)
+        text_id_hash = self.__calculate_hash(text_id)
 
         return (text_id_hash, encrypted_content)
 
@@ -335,7 +335,7 @@ class Database:
         private_key = base64.urlsafe_b64encode(kdf.derive(self.secret + text_id.encode("utf-8")))
 
         fernet = Fernet(private_key)
-        token = base64.b64decode(encrypted_content.encode("utf-8"))
+        token = encrypted_content.encode("utf-8")
         content = fernet.decrypt(token).decode("utf-8")
 
         return content
@@ -414,7 +414,7 @@ class Database:
         # text_id is hidden with hashing
         original_text_id = text_id
         if self.secret is not None:
-            text_id = await self.__calculate_hash(text_id)
+            text_id = self.__calculate_hash(text_id)
 
         async with self.session as session:
             text = await session.run_sync(
@@ -460,7 +460,7 @@ class Database:
         # text_id is hidden with hashing
         original_text_id = text_id
         if self.secret:
-            text_id = await self.__calculate_hash(text_id)
+            text_id = self.__calculate_hash(text_id)
 
         async with self.session as session:
             text = await session.run_sync(
