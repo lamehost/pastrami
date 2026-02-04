@@ -38,7 +38,7 @@ import json
 import logging
 import sqlite3
 from datetime import datetime, timezone
-from typing import Any, Callable, Tuple, TypedDict
+from typing import Any, Callable, Optional, Tuple, TypedDict
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -149,8 +149,8 @@ class Database:
         Whether echo SQL queries or not. Default: False
     create: bool
         Whether create SQL database and tables or not. Default: False
-    encrypted: bool
-        Whether encrypt data or not. Default: False
+    secret: Optional[str] = None
+        Server side encryption key
     iterations: The amount of Fernet iterations to run. Default: 1_200_000
     """
 
@@ -159,10 +159,10 @@ class Database:
         url: str,
         echo: bool = False,
         create: bool = False,
-        encrypted: bool = False,
+        secret: Optional[str] = None,
         iterations: int = 1_200_000,
     ) -> None:
-        self.__encrypted = encrypted
+        self.secret: bytes | None = secret.encode("utf-8") if secret is not None else None
         self.fernet_iterations = iterations
 
         self.__create: bool = create
@@ -284,6 +284,9 @@ class Database:
          - str: hashed text_id
          - str: encrypted content
         """
+        if self.secret is None:
+            raise ValueError("Secret can't be None")
+        
         # Encrypt content
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
@@ -291,7 +294,8 @@ class Database:
             salt=salt.encode("utf-8"),
             iterations=self.fernet_iterations,
         )
-        private_key = base64.urlsafe_b64encode(kdf.derive(text_id.encode("utf-8")))
+
+        private_key = base64.urlsafe_b64encode(kdf.derive(self.secret + text_id.encode("utf-8")))
 
         fernet = Fernet(private_key)
         token = fernet.encrypt(content.encode("utf-8"))
@@ -318,13 +322,16 @@ class Database:
         --------
         str: decrypted content
         """
+        if self.secret is None:
+            raise ValueError("Secret can't be None")
+        
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt.encode("utf-8"),
             iterations=self.fernet_iterations,
         )
-        private_key = base64.urlsafe_b64encode(kdf.derive(text_id.encode("utf-8")))
+        private_key = base64.urlsafe_b64encode(kdf.derive(self.secret + text_id.encode("utf-8")))
 
         fernet = Fernet(private_key)
         token = base64.b64decode(encrypted_content.encode("utf-8"))
@@ -357,7 +364,7 @@ class Database:
 
         # Hide text_id with hashing
         original_text_id = text["text_id"]
-        if self.__encrypted:
+        if self.secret is not None:
             salt = str(uuid4())
             text["text_id"], text["content"] = await self.__encrypt(
                 text["text_id"], salt, text["content"]
@@ -405,7 +412,7 @@ class Database:
 
         # text_id is hidden with hashing
         original_text_id = text_id
-        if self.__encrypted:
+        if self.secret is not None:
             text_id = await self.__calculate_hash(text_id)
 
         async with self.session as session:
@@ -418,7 +425,7 @@ class Database:
         if text is None:
             raise ValueError(f"Unable to find matching text. Text ID: {original_text_id}")
 
-        if self.__encrypted:
+        if self.secret:
             try:
                 content = await self.__decrypt(original_text_id, str(text.salt), str(text.content))
             except InvalidToken as error:
@@ -451,7 +458,7 @@ class Database:
 
         # text_id is hidden with hashing
         original_text_id = text_id
-        if self.__encrypted:
+        if self.secret:
             text_id = await self.__calculate_hash(text_id)
 
         async with self.session as session:

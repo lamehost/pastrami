@@ -9,7 +9,7 @@ This module provides data models and methods to read the settings file
 # pylint: disable=too-few-public-methods, no-name-in-module
 
 from enum import Enum
-from typing import Annotated
+from typing import Annotated, Optional
 
 from annotated_types import Gt
 from pydantic import AnyHttpUrl, EmailStr
@@ -24,7 +24,7 @@ class DatabaseSettings(BaseSettings):
     url: str = "sqlite:///pastrami.db"
     create: bool = True
     echo: bool = False
-    encrypted: bool = False
+    secret: Optional[str] = None
     iterations: int = 1_200_000
 
 

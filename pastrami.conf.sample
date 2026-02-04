@@ -4,8 +4,8 @@ pastrami_database_url = sqlite://:memory:
 pastrami_database_create = true
 # Whether echo SQL queries (debugging only)
 pastrami_database_echo = false
-# Whether encrypt database content
-pastrami_database_encrypted = true
+# Server side secret to encrypt database records
+pastrami_database_secret = "A veeeery loooooong string"
 # Amount of encryption iterations
 pastrami_database_iterations = 1200000
 

@@ -7,7 +7,7 @@ from pastrami.database import Database, DuplicatedItemException, Text
 
 class TestDatabase(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
-        self.database = Database("sqlite:///:memory:", create=True, echo=False, encrypted=True)
+        self.database = Database("sqlite:///:memory:", create=True, echo=False, secret="random")
         asyncio.run(self.database.connect())
 
     async def test_connect(self):

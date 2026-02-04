@@ -14,7 +14,7 @@ class TestWebApp(unittest.TestCase):
                 "url": "sqlite:///:memory:",
                 "create": True,
                 "echo": False,
-                "encrypted": True,
+                "secret": "random",
             },
             # API frontend stuff
             "contact": {
