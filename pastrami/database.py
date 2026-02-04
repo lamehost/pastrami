@@ -163,6 +163,8 @@ class Database:
         iterations: int = 1_200_000,
     ) -> None:
         self.secret: bytes | None = secret.encode("utf-8") if secret is not None else None
+        if self.secret:
+            LOGGER.info("Database is encrypted")
         self.fernet_iterations = iterations
 
         self.__create: bool = create
@@ -194,7 +196,6 @@ class Database:
             self.__engine_kwargs["connect_args"] = {"check_same_thread": False}
         else:
             error = f'Database can be either "sqlite" or "postgresql", not: "{parsed_url.scheme}"'
-            # LOGGER.error(error)
             raise ValueError(error)
 
         self.session = None
