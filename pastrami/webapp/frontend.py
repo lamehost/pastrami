@@ -177,6 +177,9 @@ def create_frontend(settings: Settings) -> APIRouter:
             raise HTTPException(
                 status_code=400, detail=f"Text is longer than {settings.maxlength} chars."
             )
+        for char in ["."]:
+            if char in text_id:
+                raise HTTPException(status_code=400, detail=f"Invalid character in text_id: {char}")
 
         created = created or datetime.now(timezone.utc)
         expires = expires or datetime.now(timezone.utc) + timedelta(seconds=settings.expires)
