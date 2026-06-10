@@ -287,7 +287,7 @@ class Database:
         """
         if self.secret is None:
             raise ValueError("Secret can't be None")
-        
+
         # Encrypt content
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
@@ -325,7 +325,7 @@ class Database:
         """
         if self.secret is None:
             raise ValueError("Secret can't be None")
-        
+
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
