@@ -112,7 +112,7 @@ async def background_tasks(settings: Settings):
         loop = asyncio.get_event_loop()
         loop.add_signal_handler(signal.SIGINT, signal_handler, signal.SIGINT)
     except (RuntimeError, ValueError) as error:
-        LOGGER.error(
+        LOGGER.exception(
             "Unable to register the signal handlers. The background tasks are disabled: %s", error
         )
         yield

@@ -56,12 +56,22 @@ def create_api(settings: Settings) -> APIRouter:
 
     api = APIRouter()
 
+    def get_database() -> Database:
+        """
+        Returns a database object instance initialized with the data from settings.database
+
+        Returns:
+        --------
+        Database: The database object instance
+        """
+        return Database(**settings.database.model_dump())
+
     @api.post(
         "/",
-        response_model=TextSchema,
         responses={
             200: {"description": "Success"},
             400: {"description": "Bad request"},
+            413: {"description": "Content too large"},
             422: {"description": "Unprocessable entity"},
             503: {"description": "Transient error"},
         },
@@ -69,8 +79,8 @@ def create_api(settings: Settings) -> APIRouter:
     )
     async def add_text(  # pyright: ignore[reportUnusedFunction]
         response: Response,
+        database: Annotated[Database, Depends(get_database())],
         text: TextSchema,
-        database: Database = Depends(Database(**settings.database.model_dump())),
     ) -> TextSchema:
         """
         **Add text.**
@@ -83,12 +93,22 @@ def create_api(settings: Settings) -> APIRouter:
             raise HTTPException(
                 status_code=400, detail=f"Text is longer than {settings.maxlength} chars."
             )
+        if not text.text_id:
+            text.text_id = str(uuid4())
+
+        for char in ["."]:
+            if text.text_id and char in text.text_id:
+                raise HTTPException(status_code=400, detail=f"Invalid character in text_id: {char}")
 
         # Overwrite created
         text.created = datetime.now(timezone.utc)
 
         # Calculate expire time
-        text.expires = text.expires or text.created + timedelta(seconds=settings.expires)
+        if text.expires:
+            # Override timezone to UTC
+            text.expires.replace(tzinfo=timezone.utc)
+        else:
+            text.expires = text.created + timedelta(seconds=settings.expires)
 
         maxexpires = text.created + timedelta(seconds=settings.expires)
         if text.expires > maxexpires:
@@ -97,7 +117,16 @@ def create_api(settings: Settings) -> APIRouter:
             )
 
         # Add Text
-        text = TextSchema.model_validate(await database.add_text(Text(**text.model_dump())))
+        text = TextSchema.model_validate(
+            await database.add_text(
+                Text(
+                    text_id=text.text_id,
+                    content=text.content,
+                    created=text.created,
+                    expires=text.expires,
+                )
+            )
+        )
 
         # Add META
         text.created = text.created or datetime.now(timezone.utc)
@@ -118,8 +147,8 @@ def create_api(settings: Settings) -> APIRouter:
     )
     async def get_metadata(  # pyright: ignore[reportUnusedFunction]
         response: Response,
+        database: Annotated[Database, Depends(get_database())],
         text_id: Annotated[str, Path(description="Task identifier", examples=[str(uuid4())])],
-        database: Database = Depends(Database(**settings.database.model_dump())),
     ):
         """
         **Return metadata.**
@@ -153,8 +182,8 @@ def create_api(settings: Settings) -> APIRouter:
     )
     async def get_text(  # pyright: ignore[reportUnusedFunction]
         response: Response,
+        database: Annotated[Database, Depends(get_database())],
         text_id: Annotated[str, Path(description="Task identifier", examples=[str(uuid4())])],
-        database: Database = Depends(Database(**settings.database.model_dump())),
     ) -> TextSchema:
         """
         **Return Text.**
@@ -193,8 +222,8 @@ def create_api(settings: Settings) -> APIRouter:
         tags=["API"],
     )
     async def delete_text(  # pyright: ignore[reportUnusedFunction]
+        database: Annotated[Database, Depends(get_database())],
         text_id: Annotated[str, Path(description="Task identifier", examples=[str(uuid4())])],
-        database: Database = Depends(Database(**settings.database.model_dump())),
     ) -> None:
         """
         **Delete Text.**

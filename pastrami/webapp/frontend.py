@@ -138,6 +138,16 @@ def create_frontend(settings: Settings) -> APIRouter:
 
     frontend = APIRouter()
 
+    def get_database() -> Database:
+        """
+        Returns a database object instance initialized with the data from settings.database
+
+        Returns:
+        --------
+        Database: The database object instance
+        """
+        return Database(**settings.database.model_dump())
+
     # Default web page
     @frontend.put(
         "/{text_id}",
@@ -145,6 +155,7 @@ def create_frontend(settings: Settings) -> APIRouter:
         responses={
             200: {"description": "Success"},
             400: {"description": "Bad request"},
+            413: {"description": "Content too large"},
             422: {"description": "Unprocessable entity"},
             503: {"description": "Transient error"},
         },
@@ -153,6 +164,7 @@ def create_frontend(settings: Settings) -> APIRouter:
     # pylint: disable=too-many-arguments, too-many-positional-arguments
     async def add_text(  # type: ignore
         response: Response,
+        database: Annotated[Database, Depends(get_database())],
         text_id: Annotated[str, Path(description="Task identifier", examples=[str(uuid4())])],
         body: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Body(
             ..., description="Text content", media_type="text/plain"
@@ -166,7 +178,6 @@ def create_frontend(settings: Settings) -> APIRouter:
             default_factory=lambda: datetime.now(timezone.utc)
             + timedelta(seconds=settings.expires),
         ),
-        database: Database = Depends(Database(**settings.database.model_dump())),
     ) -> TextSchema:
         """
         **Add text.**
@@ -175,14 +186,23 @@ def create_frontend(settings: Settings) -> APIRouter:
         """
         if len(body) >= settings.maxlength:
             raise HTTPException(
-                status_code=400, detail=f"Text is longer than {settings.maxlength} chars."
+                status_code=413, detail=f"Text is longer than {settings.maxlength} chars."
             )
         for char in ["."]:
             if char in text_id:
                 raise HTTPException(status_code=400, detail=f"Invalid character in text_id: {char}")
 
-        created = created or datetime.now(timezone.utc)
-        expires = expires or datetime.now(timezone.utc) + timedelta(seconds=settings.expires)
+        if created:
+            # Override timezone to UTC
+            created.replace(tzinfo=timezone.utc)
+        else:
+            created = datetime.now(timezone.utc)
+
+        if expires:
+            # Override timezone
+            expires.replace(tzinfo=timezone.utc)
+        else:
+            expires = datetime.now(timezone.utc) + timedelta(seconds=settings.expires)
 
         # Add Text
         text = TextSchema.model_validate(
@@ -196,11 +216,19 @@ def create_frontend(settings: Settings) -> APIRouter:
 
         return text
 
-    @frontend.get("/{text_id}", tags=["Frontend"], response_model=None)
+    @frontend.get(
+        "/{text_id}",
+        tags=["Frontend"],
+        response_model=None,
+        responses={
+            200: {"description": "Success"},
+            404: {"description": "Not found"},
+        },
+    )
     async def show_text_in_web_page(  # pyright: ignore[reportUnusedFunction]
         request: Request,
+        database: Annotated[Database, Depends(get_database())],
         text_id: Annotated[str, Path(description="Task identifier", examples=[str(uuid4())])],
-        database: Database = Depends(Database(**settings.database.model_dump())),
     ) -> Union[
         PlainTextResponse,
         HTMLResponse,
@@ -228,7 +256,7 @@ def create_frontend(settings: Settings) -> APIRouter:
         try:
             text_id, extension = text_id.lower().rsplit(".", 1)
         except ValueError:
-            extension = False
+            extension = ""
 
         # Get text from database
         try:
