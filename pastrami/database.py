@@ -38,6 +38,7 @@ import json
 import logging
 import sqlite3
 from datetime import datetime, timezone
+from functools import lru_cache
 from typing import Any, Callable, Optional, Tuple, TypedDict
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -45,10 +46,21 @@ from uuid import uuid4
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from sqlalchemy import DDL, Column, DateTime, String, event
+from sqlalchemy import DDL, DateTime, String, event, select
 from sqlalchemy import text as sqlalchemy_text
-from sqlalchemy.exc import DataError, IntegrityError, OperationalError, SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.exc import (
+    DataError,
+    IntegrityError,
+    NoResultFound,
+    OperationalError,
+    SQLAlchemyError,
+)
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlalchemy.ext.asyncio import session as async_session
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, validates
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.schema import FetchedValue
@@ -68,19 +80,15 @@ class TextModel(Base):
     """
 
     __tablename__ = "texts"
-    text_id: Mapped[str] = mapped_column(
-        Column(String(), primary_key=True, default=lambda: str(uuid4()))
-    )
-    salt: Mapped[str] = mapped_column(Column(String(), nullable=True))
-    content: Mapped[str] = mapped_column(Column(String(), nullable=False))
+    text_id: Mapped[str] = mapped_column(String(), primary_key=True, default=lambda: str(uuid4()))
+    salt: Mapped[str] = mapped_column(String(), nullable=True)
+    content: Mapped[str] = mapped_column(String(), nullable=False)
     created: Mapped[datetime] = mapped_column(
-        Column(
-            DateTime,
-            server_default=sqlalchemy_text("CURRENT_TIMESTAMP"),
-            server_onupdate=FetchedValue(),
-        )
+        DateTime,
+        server_default=sqlalchemy_text("CURRENT_TIMESTAMP"),
+        server_onupdate=FetchedValue(),
     )
-    expires: Mapped[datetime] = mapped_column(Column(DateTime, nullable=True))
+    expires: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
     # Executed through an event (see the bottom of this file)
     update_ceated_on_update = DDL("""
@@ -235,6 +243,18 @@ class Database:
     async def __aexit__(self, *args: Tuple[Any], **kwargs: dict[Any, Any]):
         await self.disconnect()
 
+    @lru_cache(maxsize=1)
+    def session_factory(self) -> async_session._AsyncSessionContextManager[AsyncSession]:
+        """
+        Instantiate and return a context manager for the async session
+
+        Returns:
+        --------
+        async_session._AsyncSessionContextManager[AsyncSession]: The context manager
+        """
+        assert self.session_maker is not None
+        return self.session_maker.begin()
+
     async def connect(self) -> None:
         """
         Connects instance to database.
@@ -252,7 +272,9 @@ class Database:
                     LOGGER.exception(error)
                     raise RuntimeError(error) from error
 
-            self.session_maker = async_sessionmaker(bind=engine, autoflush=False)
+            self.session_maker = async_sessionmaker(
+                bind=engine, autoflush=False, expire_on_commit=False
+            )
         except SQLAlchemyError as error:
             LOGGER.exception(error)
             raise error from error
@@ -262,7 +284,7 @@ class Database:
         Disconnects instance from database.
         """
         if self.session_maker is not None:
-            async with self.session_maker.begin() as session:
+            async with self.session_factory() as session:
                 await session.close()
 
     # Crypto methods
@@ -392,22 +414,21 @@ class Database:
 
         db_object = TextModel(**text, salt=salt)
 
-        async with self.session_maker.begin() as session:
-            async with session.begin():
-                session.add(db_object)
+        async with self.session_factory() as session:
+            session.add(db_object)
 
-                try:
-                    await session.commit()
-                    # await session.refresh(db_object)
-                except (DataError, OperationalError) as error:
-                    await session.rollback()
-                    raise RuntimeError(error) from error
-                except IntegrityError as error:
-                    await session.rollback()
-                    if "unique" in str(error.orig).lower().split(" "):
-                        raise DuplicatedItemException(
-                            object_type="text", object_id=original_text_id
-                        ) from error
+            try:
+                await session.commit()
+                # await session.refresh(db_object)
+            except (DataError, OperationalError) as error:
+                await session.rollback()
+                raise RuntimeError(error) from error
+            except IntegrityError as error:
+                await session.rollback()
+                if "unique" in str(error.orig).lower().split(" "):
+                    raise DuplicatedItemException(
+                        object_type="text", object_id=original_text_id
+                    ) from error
 
         LOGGER.debug("New text added to database %s: Text ID: %s", text, original_text_id)
 
@@ -433,19 +454,18 @@ class Database:
         if self.secret is not None:
             text_id = self.__calculate_hash(text_id)
 
-        async with self.session_maker.begin() as session:
-            text = await session.run_sync(
-                lambda sync_session: sync_session.query(TextModel)
-                .filter(TextModel.text_id == text_id)
-                .first()
-            )
-
-        if text is None:
-            raise ValueError(f"Unable to find matching text. Text ID: {original_text_id}")
+        async with self.session_factory() as session:
+            result = await session.execute(select(TextModel).where(TextModel.text_id == text_id))
+            try:
+                text = result.scalars().one()
+            except NoResultFound as error:
+                raise ValueError(
+                    f"Unable to find matching text. Text ID: {original_text_id}"
+                ) from error
 
         if self.secret:
             try:
-                content = await self.__decrypt(original_text_id, str(text.salt), str(text.content))
+                content = await self.__decrypt(original_text_id, text.salt, text.content)
             except InvalidToken as error:
                 raise ValueError(
                     f"Unable to decrypt content. Text ID: {original_text_id}"
@@ -479,24 +499,24 @@ class Database:
         if self.secret:
             text_id = self.__calculate_hash(text_id)
 
-        async with self.session_maker.begin() as session:
-            text = await session.run_sync(
-                lambda sync_session: sync_session.query(TextModel)
-                .filter(TextModel.text_id == text_id)
-                .first()
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(TextModel).where(TextModel.text_id == text_id).limit(1)
             )
 
-        if not text:
-            raise ValueError(f"Unable to find matching text. Text ID: {original_text_id}")
+            try:
+                text = result.scalars().one()
+            except NoResultFound as error:
+                raise ValueError(
+                    f"Unable to find matching text. Text ID: {original_text_id}"
+                ) from error
 
-        async with self.session_maker.begin() as session:
-            async with session.begin():
-                try:
-                    await session.delete(text)
-                    await session.commit()
-                except (DataError, OperationalError) as error:
-                    await session.rollback()
-                    raise RuntimeError(error) from error
+            try:
+                await session.delete(text)
+                await session.commit()
+            except (DataError, OperationalError) as error:
+                await session.rollback()
+                raise RuntimeError(error) from error
 
         LOGGER.debug("Text deleted from the database. Text ID: %s", original_text_id)
 
@@ -511,25 +531,22 @@ class Database:
         if not self.session_maker:
             raise BrokenPipeError("Not connected to the database")  # NOSONAR
 
-        async with self.session_maker.begin() as session:
-            texts = await session.run_sync(
-                lambda sync_session: sync_session.query(TextModel)
-                .filter(TextModel.expires < datetime.now(timezone.utc))
-                .all()
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(TextModel).where(TextModel.expires < datetime.now(timezone.utc))
             )
+            texts = result.scalars().all()
 
-        if not texts:
-            return 0
+            if not texts:
+                return 0
 
-        async with self.session_maker.begin() as session:
-            async with session.begin():
-                try:
-                    for text in texts:
-                        await session.delete(text)
-                    await session.commit()
-                except (DataError, OperationalError) as error:
-                    await session.rollback()
-                    raise RuntimeError(error) from error
+            try:
+                for text in texts:
+                    await session.delete(text)
+                await session.commit()
+            except (DataError, OperationalError) as error:
+                await session.rollback()
+                raise RuntimeError(error) from error
 
         LOGGER.debug("Expired text deleted from the database: %d", len(texts))
 
