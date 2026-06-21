@@ -45,30 +45,51 @@ from uuid import uuid4
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from sqlalchemy import Column, DateTime, String
+from sqlalchemy import DDL, Column, DateTime, String, event
+from sqlalchemy import text as sqlalchemy_text
 from sqlalchemy.exc import DataError, IntegrityError, OperationalError, SQLAlchemyError
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.orm import declarative_base, validates
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, validates
 from sqlalchemy.pool import StaticPool
+from sqlalchemy.schema import FetchedValue
 
 LOGGER = logging.getLogger(__name__)
 
-BASE = declarative_base()
+
+class Base(DeclarativeBase):
+    """
+    SQLAlchemy's declarative base class
+    """
 
 
-class TextModel(BASE):
+class TextModel(Base):
     """
     Describes database table `texts`
     """
 
     __tablename__ = "texts"
-    text_id = Column(String(), primary_key=True, default=lambda: str(uuid4()))
-    salt = Column(String(), nullable=True)
-    content = Column(String(), nullable=False)
-    created = Column(
-        DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc)
+    text_id: Mapped[str] = mapped_column(
+        Column(String(), primary_key=True, default=lambda: str(uuid4()))
     )
-    expires = Column(DateTime, nullable=True)
+    salt: Mapped[str] = mapped_column(Column(String(), nullable=True))
+    content: Mapped[str] = mapped_column(Column(String(), nullable=False))
+    created: Mapped[datetime] = mapped_column(
+        Column(
+            DateTime,
+            server_default=sqlalchemy_text("CURRENT_TIMESTAMP"),
+            server_onupdate=FetchedValue(),
+        )
+    )
+    expires: Mapped[datetime] = mapped_column(Column(DateTime, nullable=True))
+
+    # Executed through an event (see the bottom of this file)
+    update_ceated_on_update = DDL("""
+        CREATE TRIGGER update_ceated_on_update
+        AFTER UPDATE ON texts
+        BEGIN
+            UPDATE texts SET updated = CURRENT_TIMESTAMP WHERE rowid = OLD.rowid;
+        END
+    """)
 
     @validates("text_id")
     def validate_text_id(self, _, text_id: str) -> str:
@@ -198,10 +219,10 @@ class Database:
             error = f'Database can be either "sqlite" or "postgresql", not: "{parsed_url.scheme}"'
             raise ValueError(error)
 
-        self.session = None
+        self.session_maker: async_sessionmaker[AsyncSession] | None = None
 
     async def __call__(self):
-        if not self.session:
+        if not self.session_maker:
             LOGGER.info("Connecting to database")
             await self.connect()
 
@@ -225,28 +246,24 @@ class Database:
             if self.__create:
                 try:
                     async with engine.begin() as connection:
-                        await connection.run_sync(BASE.metadata.create_all)
+                        await connection.run_sync(Base.metadata.create_all)
                     LOGGER.info("Connected to database")
                 except OperationalError as error:
-                    LOGGER.error(error)
+                    LOGGER.exception(error)
                     raise RuntimeError(error) from error
 
-            make_session = async_sessionmaker(bind=engine, autoflush=False)
+            self.session_maker = async_sessionmaker(bind=engine, autoflush=False)
         except SQLAlchemyError as error:
-            LOGGER.error(error)
+            LOGGER.exception(error)
             raise error from error
-
-        self.session = make_session()
 
     async def disconnect(self) -> None:
         """
         Disconnects instance from database.
         """
-        try:
-            if self.session:
-                await self.session.close()
-        except AttributeError:
-            pass
+        if self.session_maker is not None:
+            async with self.session_maker.begin() as session:
+                await session.close()
 
     # Crypto methods
     @staticmethod
@@ -354,7 +371,7 @@ class Database:
         --------
         dict: Text object
         """
-        if not self.session:
+        if not self.session_maker:
             raise BrokenPipeError("Not connected to the database")  # NOSONAR
 
         if len(text["text_id"].strip()) < 1:
@@ -375,7 +392,7 @@ class Database:
 
         db_object = TextModel(**text, salt=salt)
 
-        async with self.session as session:
+        async with self.session_maker.begin() as session:
             async with session.begin():
                 session.add(db_object)
 
@@ -408,7 +425,7 @@ class Database:
         --------
         None if no text was found, otherwise the `text` formatted as dict
         """
-        if not self.session:
+        if not self.session_maker:
             raise BrokenPipeError("Not connected to the database")  # NOSONAR
 
         # text_id is hidden with hashing
@@ -416,7 +433,7 @@ class Database:
         if self.secret is not None:
             text_id = self.__calculate_hash(text_id)
 
-        async with self.session as session:
+        async with self.session_maker.begin() as session:
             text = await session.run_sync(
                 lambda sync_session: sync_session.query(TextModel)
                 .filter(TextModel.text_id == text_id)
@@ -441,8 +458,8 @@ class Database:
         return Text(
             text_id=original_text_id,
             content=str(content),
-            created=text.created,  # pyright: ignore[reportArgumentType]
-            expires=text.expires,  # pyright: ignore[reportArgumentType]
+            created=text.created,
+            expires=text.expires,
         )
 
     async def delete_text(self, text_id: str):
@@ -454,7 +471,7 @@ class Database:
         text_id: str
             Text identifier
         """
-        if not self.session:
+        if not self.session_maker:
             raise BrokenPipeError("Not connected to the database")  # NOSONAR
 
         # text_id is hidden with hashing
@@ -462,7 +479,7 @@ class Database:
         if self.secret:
             text_id = self.__calculate_hash(text_id)
 
-        async with self.session as session:
+        async with self.session_maker.begin() as session:
             text = await session.run_sync(
                 lambda sync_session: sync_session.query(TextModel)
                 .filter(TextModel.text_id == text_id)
@@ -472,7 +489,7 @@ class Database:
         if not text:
             raise ValueError(f"Unable to find matching text. Text ID: {original_text_id}")
 
-        async with self.session as session:
+        async with self.session_maker.begin() as session:
             async with session.begin():
                 try:
                     await session.delete(text)
@@ -491,10 +508,10 @@ class Database:
         --------
         int: amount of Texts that have been deleted
         """
-        if not self.session:
+        if not self.session_maker:
             raise BrokenPipeError("Not connected to the database")  # NOSONAR
 
-        async with self.session as session:
+        async with self.session_maker.begin() as session:
             texts = await session.run_sync(
                 lambda sync_session: sync_session.query(TextModel)
                 .filter(TextModel.expires < datetime.now(timezone.utc))
@@ -504,7 +521,7 @@ class Database:
         if not texts:
             return 0
 
-        async with self.session as session:
+        async with self.session_maker.begin() as session:
             async with session.begin():
                 try:
                     for text in texts:
@@ -517,3 +534,6 @@ class Database:
         LOGGER.debug("Expired text deleted from the database: %d", len(texts))
 
         return len(texts)
+
+
+event.listen(TextModel.__table__, "after_create", TextModel.update_ceated_on_update)
