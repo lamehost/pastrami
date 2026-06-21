@@ -60,7 +60,9 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.ext.asyncio import session as async_session
+from sqlalchemy.ext.asyncio.session import (
+    _AsyncSessionContextManager,  # pyright: ignore[reportPrivateUsage]
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, validates
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.schema import FetchedValue
@@ -244,7 +246,9 @@ class Database:
         await self.disconnect()
 
     @lru_cache(maxsize=1)
-    def session_factory(self) -> async_session._AsyncSessionContextManager[AsyncSession]:
+    def session_factory(
+        self,
+    ) -> _AsyncSessionContextManager[AsyncSession]:  # pyright: ignore[reportPrivateUsage]
         """
         Instantiate and return a context manager for the async session
 
@@ -252,7 +256,10 @@ class Database:
         --------
         async_session._AsyncSessionContextManager[AsyncSession]: The context manager
         """
-        assert self.session_maker is not None
+
+        if self.session_maker is None:
+            raise RuntimeError("Unable to start a session: Session maker is None")
+
         return self.session_maker.begin()
 
     async def connect(self) -> None:
