@@ -166,18 +166,26 @@ def create_frontend(settings: Settings) -> APIRouter:
         response: Response,
         database: Annotated[Database, Depends(get_database())],
         text_id: Annotated[str, Path(description="Task identifier", examples=[str(uuid4())])],
-        body: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Body(
-            ..., description="Text content", media_type="text/plain"
-        ),
-        created: Optional[datetime] = Query(
-            description="Moment the text was created",
-            default_factory=lambda: datetime.now(timezone.utc),
-        ),
-        expires: Optional[datetime] = Query(
-            description="Moment the text will expire",
-            default_factory=lambda: datetime.now(timezone.utc)
-            + timedelta(seconds=settings.expires),
-        ),
+        body: Annotated[
+            str,
+            StringConstraints(strip_whitespace=True, min_length=1),
+            Body(..., description="Text content", media_type="text/plain"),
+        ],
+        created: Annotated[
+            Optional[datetime],
+            Query(
+                description="Moment the text was created",
+                default_factory=lambda: datetime.now(timezone.utc),
+            ),
+        ],
+        expires: Annotated[
+            Optional[datetime],
+            Query(
+                description="Moment the text will expire",
+                default_factory=lambda: datetime.now(timezone.utc)
+                + timedelta(seconds=settings.expires),
+            ),
+        ],
     ) -> TextSchema:
         """
         **Add text.**
