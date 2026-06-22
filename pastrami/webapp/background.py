@@ -91,7 +91,7 @@ async def purge_expired(settings: Settings, idle: int = 60) -> None:
                 LOGGER.info("Purging expired texts")
                 await database.purge_expired()
         except BrokenPipeError as error:
-            LOGGER.warning(str(error))
+            LOGGER.exception("Unable to purge expired texts: %s", error)
 
         await asyncio.sleep(idle)
 
@@ -108,7 +108,8 @@ async def background_tasks(settings: Settings):
         App wide settings
     """
     try:
-        # This feels hacky and I hate it, but i couldn't find any better ways
+        # This feels hacky and I hate it, but i couldn't find any better ways for propagating
+        # KeyboardInterrupt to the background tasks.
         loop = asyncio.get_event_loop()
         loop.add_signal_handler(signal.SIGINT, signal_handler, signal.SIGINT)
     except (RuntimeError, ValueError) as error:
@@ -118,7 +119,7 @@ async def background_tasks(settings: Settings):
         yield
         return
 
-    # Non awaited tasks are executed in the background
+    # Non awaited tasks are executed in the background in a fire-and-forget manner.
     async_purge_expired = asyncio.create_task(
         purge_expired(settings=settings, idle=60), name="Purge Expired"
     )
