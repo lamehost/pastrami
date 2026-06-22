@@ -12,7 +12,7 @@ from enum import Enum
 from typing import Annotated, Optional
 
 from annotated_types import Gt
-from pydantic import AnyHttpUrl, EmailStr
+from pydantic import AnyHttpUrl, BeforeValidator, EmailStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,7 +24,10 @@ class DatabaseSettings(BaseSettings):
     url: str = "sqlite:///pastrami.db"
     create: bool = True
     echo: bool = False
-    secret: Optional[str] = None
+    secret: Annotated[
+        # Convert an empty string to None
+        Optional[str], BeforeValidator(lambda value: None if value == "" else value)
+    ] = None
     iterations: int = 1_200_000
 
 

@@ -194,7 +194,7 @@ class Database:
         iterations: int = 1_200_000,
     ) -> None:
         self.secret: bytes | None = secret.encode("utf-8") if secret is not None else None
-        if self.secret:
+        if self.secret is not None:
             LOGGER.info("Database is encrypted")
         self.fernet_iterations = iterations
 
@@ -470,7 +470,7 @@ class Database:
                     f"Unable to find matching text. Text ID: {original_text_id}"
                 ) from error
 
-        if self.secret:
+        if self.secret is not None:
             try:
                 content = await self.__decrypt(original_text_id, text.salt, text.content)
             except InvalidToken as error:
@@ -503,7 +503,7 @@ class Database:
 
         # text_id is hidden with hashing
         original_text_id = text_id
-        if self.secret:
+        if self.secret is not None:
             text_id = self.__calculate_hash(text_id)
 
         async with self.session_factory() as session:
