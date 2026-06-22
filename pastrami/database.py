@@ -46,7 +46,7 @@ from uuid import uuid4
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from sqlalchemy import DDL, DateTime, String, event, select
+from sqlalchemy import DateTime, String, select
 from sqlalchemy import text as sqlalchemy_text
 from sqlalchemy.exc import (
     DataError,
@@ -65,7 +65,6 @@ from sqlalchemy.ext.asyncio.session import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, validates
 from sqlalchemy.pool import StaticPool
-from sqlalchemy.schema import FetchedValue
 
 LOGGER = logging.getLogger(__name__)
 
@@ -88,18 +87,8 @@ class TextModel(Base):
     created: Mapped[datetime] = mapped_column(
         DateTime,
         server_default=sqlalchemy_text("CURRENT_TIMESTAMP"),
-        server_onupdate=FetchedValue(),
     )
     expires: Mapped[datetime] = mapped_column(DateTime, nullable=True)
-
-    # Executed through an event (see the bottom of this file)
-    update_ceated_on_update = DDL("""
-        CREATE TRIGGER update_ceated_on_update
-        AFTER UPDATE ON texts
-        BEGIN
-            UPDATE texts SET updated = CURRENT_TIMESTAMP WHERE rowid = OLD.rowid;
-        END
-    """)
 
     @validates("text_id")
     def validate_text_id(self, _, text_id: str) -> str:
@@ -558,6 +547,3 @@ class Database:
         LOGGER.debug("Expired text deleted from the database: %d", len(texts))
 
         return len(texts)
-
-
-event.listen(TextModel.__table__, "after_create", TextModel.update_ceated_on_update)

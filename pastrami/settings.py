@@ -26,7 +26,8 @@ class DatabaseSettings(BaseSettings):
     echo: bool = False
     secret: Annotated[
         # Convert an empty string to None
-        Optional[str], BeforeValidator(lambda value: None if value == "" else value)
+        Optional[str],
+        BeforeValidator(lambda value: None if value == "" else value),
     ] = None
     iterations: int = 1_200_000
 
