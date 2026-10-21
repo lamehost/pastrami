@@ -92,7 +92,7 @@ def create_api(settings: Settings) -> APIRouter:
         if len(text.content) >= settings.maxlength:
             raise HTTPException(
                 status_code=400,
-                detail=[{"msg": f"Text is longer than {settings.maxlength} chars."}]
+                detail=[{"msg": f"Text is longer than {settings.maxlength} chars."}],
             )
         if not text.text_id:
             text.text_id = str(uuid4())
