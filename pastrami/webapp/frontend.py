@@ -27,7 +27,7 @@ Implements the web frontend
 import json
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Optional, Union, no_type_check
+from typing import Annotated, Optional, no_type_check
 from uuid import uuid4
 
 import markdown
@@ -75,7 +75,7 @@ class PrettyJSONResponse(Response):
             data = json.loads(content)
         except json.decoder.JSONDecodeError as error:
             raise HTTPException(
-                status_code=406, detail="This content is not JSON serializable"
+                status_code=406, detail=[{"msg": "This content is not JSON serializable"}]
             ) from error
 
         return json.dumps(data, indent=2).encode("utf-8")
@@ -108,7 +108,7 @@ class PrettyXMLResponse(Response):
             data = etree.XML(content, parser)
         except etree.XMLSyntaxError as error:
             raise HTTPException(
-                status_code=406, detail="This content is not XML serializable"
+                status_code=406, detail=[{"msg": "This content is not XML serializable"}]
             ) from error
 
         etree.indent(data, space="    ")
@@ -194,11 +194,11 @@ def create_frontend(settings: Settings) -> APIRouter:
         """
         if len(body) >= settings.maxlength:
             raise HTTPException(
-                status_code=413, detail=f"Text is longer than {settings.maxlength} chars."
+                status_code=413, detail=[{"msg": f"Text is longer than {settings.maxlength} chars."}]
             )
         for char in ["."]:
             if char in text_id:
-                raise HTTPException(status_code=400, detail=f"Invalid character in text_id: {char}")
+                raise HTTPException(status_code=400, detail=[{"msg": f"Invalid character in text_id: {char}"}])
 
         if created:
             # Override timezone to UTC
@@ -237,13 +237,7 @@ def create_frontend(settings: Settings) -> APIRouter:
         request: Request,
         database: Annotated[Database, Depends(get_database())],
         text_id: Annotated[str, Path(description="Task identifier", examples=[str(uuid4())])],
-    ) -> Union[
-        PlainTextResponse,
-        HTMLResponse,
-        PrettyJSONResponse,
-        PrettyXMLResponse,
-        None,
-    ]:
+    ) -> PlainTextResponse | HTMLResponse | PrettyJSONResponse | PrettyXMLResponse | None :
         """
         **Show text in web page.**
 
@@ -258,7 +252,7 @@ def create_frontend(settings: Settings) -> APIRouter:
         """
         # Ignore common requests
         if text_id in ["favicon.ico", "index.html", "index.php"]:
-            raise HTTPException(status_code=404, detail=f"Unable to find text: {text_id}")
+            raise HTTPException(status_code=404, detail=[{"msg": f"Unable to find text: {text_id}"}])
 
         # Find extension
         try:
@@ -271,7 +265,7 @@ def create_frontend(settings: Settings) -> APIRouter:
             text = await database.get_text(text_id)
         except ValueError as error:
             raise HTTPException(
-                status_code=404, detail=f"Unable to find text: {text_id}"
+                status_code=404, detail=[{"msg": f"Unable to find text: {text_id}"}]
             ) from error
 
         # Add META

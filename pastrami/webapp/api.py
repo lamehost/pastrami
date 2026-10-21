@@ -91,14 +91,17 @@ def create_api(settings: Settings) -> APIRouter:
         """
         if len(text.content) >= settings.maxlength:
             raise HTTPException(
-                status_code=400, detail=f"Text is longer than {settings.maxlength} chars."
+                status_code=400,
+                detail=[{"msg": f"Text is longer than {settings.maxlength} chars."}]
             )
         if not text.text_id:
             text.text_id = str(uuid4())
 
         for char in ["."]:
             if text.text_id and char in text.text_id:
-                raise HTTPException(status_code=400, detail=f"Invalid character in text_id: {char}")
+                raise HTTPException(
+                    status_code=400, detail=[{"msg": f"Invalid character in text_id: {char}"}]
+                )
 
         # Overwrite created
         text.created = datetime.now(timezone.utc)
@@ -113,7 +116,7 @@ def create_api(settings: Settings) -> APIRouter:
         maxexpires = text.created + timedelta(seconds=settings.expires)
         if text.expires > maxexpires:
             raise HTTPException(
-                status_code=400, detail=f"Maximum expire date and time is {maxexpires}"
+                status_code=400, detail=[{"msg": f"Maximum expire date and time is {maxexpires}"}]
             )
 
         # Add Text
@@ -161,7 +164,7 @@ def create_api(settings: Settings) -> APIRouter:
             text = await database.get_text(text_id)
         except ValueError as error:
             raise HTTPException(
-                status_code=404, detail=f"Unable to find text: {text_id}"
+                status_code=404, detail=[{"msg": f"Unable to find text: {text_id}"}]
             ) from error
 
         # Populate meta
@@ -196,7 +199,7 @@ def create_api(settings: Settings) -> APIRouter:
             text = await database.get_text(text_id)
         except ValueError as error:
             raise HTTPException(
-                status_code=404, detail=f"Unable to find text: {text_id}"
+                status_code=404, detail=[{"msg": f"Unable to find text: {text_id}"}]
             ) from error
 
         # Add META
@@ -235,7 +238,7 @@ def create_api(settings: Settings) -> APIRouter:
             await database.delete_text(text_id)
         except ValueError as error:
             raise HTTPException(
-                status_code=404, detail=f"Unable to find text: {text_id}"
+                status_code=404, detail=[{"msg": f"Unable to find text: {text_id}"}]
             ) from error
 
     return api
