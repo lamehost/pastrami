@@ -63,8 +63,7 @@
         </div>
         <nav class="navbar bg-body user-select-none">
             <div class="container-fluid">
-                <small class="navbar-text" id="stats"></small>
-                <small class="navbar-text text-danger" id="alert"></small>
+                <small class="navbar-text text-break" id="stats"></small>
                 <form>
                     <div class="btn-group">
                         <button type="submit" class="btn btn-outline-primary" id="save" title="Click to save">
@@ -108,6 +107,23 @@
         </nav>
     </div>
 
+    <div class="modal" tabindex="-1" id="alert">
+    <div class="modal-dialog">
+        <div class="modal-content">
+        <div class="modal-header alert alert-danger">
+            <h5 class="modal-title">Server Error</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            <p id="error"></p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+        </div>
+        </div>
+    </div>
+    </div>
+
     <script src="static/jquery-3.7.1.min.js"
         integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs"
         crossorigin="anonymous"></script>
@@ -144,16 +160,19 @@
 
             [lines, words, characters] = calculateStats(text);
 
-            $("#stats").html(
-                "Lines: " + lines + " - Words: " + words + " - Characters: " + characters
-            );
-
-            if (characters > MAXLENGTH) {
-                $("#stats").css("color", "crimson");
-                $("#save").prop("disabled", true);
+            if (characters == 0) {
+                $("#stats").html("");
+            }
+            else if (characters > MAXLENGTH) {
+                $("#stats").addClass("text-danger");
+                $("#stats").html(
+                    "Lines: " + lines + " - Words: " + words + " - Characters: " + characters
+                );
             } else {
-                $("#stats").css("color", "gray");
-                $("#save").prop("disabled", false);
+                $("#stats").removeClass("text-danger");
+                $("#stats").html(
+                    "Lines: " + lines + " - Words: " + words + " - Characters: " + characters
+                );
             }
         }
 
@@ -175,9 +194,10 @@
             }).done(function (data) {
                 window.location.href = data.text_id;
             }).fail(function (jqXHR) {
-                $("#alert").html(
+                $("#error").html(
                     JSON.parse(jqXHR.responseText).detail[0].msg
-                ).fadeIn(500).delay(5000).fadeOut(500);
+                )
+                $('#alert').modal('show');
             });
         }
 
@@ -214,13 +234,11 @@
 
         $(document).bind("keyup", function () {
             var text = $("#text").val();
-
             updateStats(text);
         });
 
         $("#text").bind("paste", function (event) {
             var text = $("#text").val()
-
             updateStats(text);
         });
 
