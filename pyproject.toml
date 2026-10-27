@@ -31,7 +31,7 @@ pydantic-core = "^2.47.0"
 [tool.poetry.group.dev.dependencies]
 flake8 = "^7.0.0"
 isort = "^8.0.1"
-black = "^26.3.1"
+black = "^26.10.1"
 coverage = "^7.0.1"
 pytest = "^9.0.3"
 requests = "^2.33.0"
