@@ -202,8 +202,20 @@
         }
 
 
-        function initValues() {
-            $("#text_id").val(self.crypto.randomUUID());
+        function initValues() { 
+            let text_id = "";
+            try {
+                text_id = self.crypto.randomUUID();
+            }
+            catch {
+                // Fallback in case self.crypto.randomUUID doesn't work
+                let seed = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-";
+
+                for( var i=0; i < 17; i++ ) {
+                    text_id += seed.charAt(Math.floor(Math.random() * seed.length));
+                }
+            }
+            $("#text_id").val(text_id);
             $("#expires").flatpickr(
                 {
                     enableTime: true,
