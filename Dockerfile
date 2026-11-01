@@ -1,5 +1,5 @@
 # *** Base ***
-FROM python:3.10.4-slim
+FROM python:3.14.8-slim
 
 # Metatada
 EXPOSE 8080/tcp
