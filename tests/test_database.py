@@ -25,6 +25,7 @@ class TestDatabase(unittest.IsolatedAsyncioTestCase):
                 content = "FooBar",
                 created = datetime.datetime(1970, 1, 1, 0, 0),
                 expires = datetime.datetime(1970, 1, 1, 0, 0),
+                ephemeral = True,
             )
         )
         self.assertEqual(
@@ -34,6 +35,7 @@ class TestDatabase(unittest.IsolatedAsyncioTestCase):
                 "content": "FooBar",
                 "created": datetime.datetime(1970, 1, 1, 0, 0),
                 "expires": datetime.datetime(1970, 1, 1, 0, 0),
+                "ephemeral": True,
             },
         )
 
@@ -44,6 +46,7 @@ class TestDatabase(unittest.IsolatedAsyncioTestCase):
                     content = "FooBar",
                     created = datetime.datetime(1970, 1, 1, 0, 0),
                     expires = datetime.datetime(1970, 1, 1, 0, 0),
+                    ephemeral = False,
                 )
             )
 
@@ -54,6 +57,7 @@ class TestDatabase(unittest.IsolatedAsyncioTestCase):
                     content = "FooBar",
                     created = datetime.datetime(1970, 1, 1, 0, 0),
                     expires = datetime.datetime(1970, 1, 1, 0, 0),
+                    ephemeral = False,
                 )
             )
 
@@ -64,6 +68,7 @@ class TestDatabase(unittest.IsolatedAsyncioTestCase):
                     "content": "",
                     "created": datetime.datetime(1970, 1, 1, 0, 0),
                     "expires": datetime.datetime(1970, 1, 1, 0, 0),
+                    "ephemeral": False,
                 }
             )
 

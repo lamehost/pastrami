@@ -52,3 +52,7 @@ class TextSchema(BaseModel):
         description="Moment the text will expire",
         default=None,
     )
+    ephemeral: bool = Field(
+        description="Whether the text should be deleted after first read",
+        default=False,
+    )

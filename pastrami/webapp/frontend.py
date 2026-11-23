@@ -46,7 +46,7 @@ from fastapi.templating import Jinja2Templates
 from lxml import etree  # type: ignore
 from pydantic import StringConstraints
 
-from pastrami.database import Database, Text
+from pastrami.database import Database, DuplicatedItemException, Text
 from pastrami.settings import Settings
 from pastrami.webapp.schema import TextSchema
 
@@ -186,6 +186,12 @@ def create_frontend(settings: Settings) -> APIRouter:
                 + timedelta(seconds=settings.expires),
             ),
         ],
+        ephemeral: Annotated[
+            bool,
+            Query(
+                description="Whether the text should be deleted after first read",
+            ),
+        ] = False,
     ) -> TextSchema:
         """
         **Add text.**
@@ -216,11 +222,22 @@ def create_frontend(settings: Settings) -> APIRouter:
             expires = datetime.now(timezone.utc) + timedelta(seconds=settings.expires)
 
         # Add Text
-        text = TextSchema.model_validate(
-            await database.add_text(
-                Text(text_id=text_id, content=body, created=created, expires=expires)
+        try:
+            text = TextSchema.model_validate(
+                await database.add_text(
+                    Text(
+                        text_id=text_id,
+                        content=body,
+                        created=created,
+                        expires=expires,
+                        ephemeral=ephemeral,
+                    )
+                )
             )
-        )
+        except DuplicatedItemException as error:
+            raise HTTPException(
+                status_code=409, detail=[{"msg": f"Duplicated text ID: {text_id}"}]
+            ) from error
 
         # Add META
         response.headers["expires"] = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")  # NOSONAR

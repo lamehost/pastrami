@@ -46,7 +46,7 @@ from uuid import uuid4
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from sqlalchemy import DateTime, String, select
+from sqlalchemy import Boolean, DateTime, String, select
 from sqlalchemy import text as sqlalchemy_text
 from sqlalchemy.exc import (
     DataError,
@@ -89,6 +89,7 @@ class TextModel(Base):
         server_default=sqlalchemy_text("CURRENT_TIMESTAMP"),
     )
     expires: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    ephemeral: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=False)
 
     @validates("text_id")
     def validate_text_id(self, _, text_id: str) -> str:
@@ -141,6 +142,7 @@ class Text(TypedDict):
     content: str
     created: datetime
     expires: datetime
+    ephemeral: bool
 
 
 class DuplicatedItemException(Exception):
@@ -428,15 +430,19 @@ class Database:
 
         LOGGER.debug("New text added to database %s: Text ID: %s", text, original_text_id)
 
-        return await self.get_text(original_text_id)
+        # Do not delete ephemeral text after this read
+        return await self.get_text(original_text_id, persist=True)
 
-    async def get_text(self, text_id: str) -> Text:
+    async def get_text(self, text_id: str, persist: bool = False) -> Text:
         """
         Gets a text from database
 
         Arguments:
         ----------
-        text_id: ID of the text
+        text_id: str
+            ID of the text
+        persist: bool
+            Whether to persist an ephemeral text. Default: False
 
         Returns:
         --------
@@ -469,14 +475,23 @@ class Database:
         else:
             content = text.content
 
-        LOGGER.debug("Text returned from the database. Text ID: %s", original_text_id)
+        LOGGER.debug(
+            "Text returned from the database. Persist: %s, Text ID: %s", persist, original_text_id
+        )
 
-        return Text(
+        response = Text(
             text_id=original_text_id,
             content=str(content),
             created=text.created,
             expires=text.expires,
+            ephemeral=text.ephemeral,
         )
+
+        if text.ephemeral and not persist:
+            # Delete ephemeral text after first read
+            await self.delete_text(original_text_id)
+
+        return response
 
     async def delete_text(self, text_id: str):
         """

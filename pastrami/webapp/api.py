@@ -30,7 +30,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Response
 
-from pastrami.database import Database, Text
+from pastrami.database import Database, DuplicatedItemException, Text
 from pastrami.settings import Settings
 
 from .schema import TextSchema
@@ -71,6 +71,7 @@ def create_api(settings: Settings) -> APIRouter:
         responses={
             200: {"description": "Success"},
             400: {"description": "Bad request"},
+            409: {"description": "Conflict"},
             413: {"description": "Content too large"},
             422: {"description": "Unprocessable entity"},
             503: {"description": "Transient error"},
@@ -88,6 +89,7 @@ def create_api(settings: Settings) -> APIRouter:
         Stores text within the database. The text is serialized as a JSON object. The
         `content` field is mandatory. If a `text_id` is not provided, the system
         will automatically generate a UUID. The `created` field is always overwritten.
+        If `ephemeral` is True, the text is deleted after the first read.
         """
         if len(text.content) >= settings.maxlength:
             raise HTTPException(
@@ -120,16 +122,22 @@ def create_api(settings: Settings) -> APIRouter:
             )
 
         # Add Text
-        text = TextSchema.model_validate(
-            await database.add_text(
-                Text(
-                    text_id=text.text_id,
-                    content=text.content,
-                    created=text.created,
-                    expires=text.expires,
+        try:
+            text = TextSchema.model_validate(
+                await database.add_text(
+                    Text(
+                        text_id=text.text_id,
+                        content=text.content,
+                        created=text.created,
+                        expires=text.expires,
+                        ephemeral=text.ephemeral,
+                    )
                 )
             )
-        )
+        except DuplicatedItemException as error:
+            raise HTTPException(
+                status_code=409, detail=[{"msg": f"Duplicated text ID: {text.text_id}"}]
+            ) from error
 
         # Add META
         text.created = text.created or datetime.now(timezone.utc)
@@ -161,7 +169,8 @@ def create_api(settings: Settings) -> APIRouter:
         """
         # Get text
         try:
-            text = await database.get_text(text_id)
+            # Get text and persist it if ephemeral
+            text = await database.get_text(text_id, persist=True)
         except ValueError as error:
             raise HTTPException(
                 status_code=404, detail=[{"msg": f"Unable to find text: {text_id}"}]
@@ -212,6 +221,7 @@ def create_api(settings: Settings) -> APIRouter:
             content=str(text["content"]),
             created=text["created"],
             expires=text["expires"],
+            ephemeral=text["ephemeral"],
         )
 
     @api.delete(
