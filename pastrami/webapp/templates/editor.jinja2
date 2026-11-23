@@ -49,6 +49,11 @@
             outline: none !important;
             box-shadow: none !important;
         }
+
+        .ephemeral-tooltip {
+            --bs-tooltip-bg: var(--bs-primary);
+            --bs-tooltip-color: var(--bs-white);
+        }
     </style>
 </head>
 
@@ -219,7 +224,8 @@
                     $("#info-title").html("Text saved")
                     $("#info-text").html(
                         "Click on the link to copy it to the clipboard:" +
-                        " <a id='ephemeral-link' href='" + url + "'>" + url + "</a>"
+                        " <a id='ephemeral-link' href='" + url + "'>" +
+                        url + "</a>"
                     );
                     $('#info-modal').modal('show');
                     initValues();
@@ -309,11 +315,25 @@
         });
 
         $(document).on('click', "#ephemeral-link", function(event) {
-            event.preventDefault();
+            const tooltip = bootstrap.Tooltip.getOrCreateInstance(
+                this,
+                {
+                    "title": "Link copied to clipboard",
+                    "trigger": "manual",
+                    "customClass": "ephemeral-tooltip"
+                }
+            );
+            this.addEventListener('shown.bs.tooltip', function() {
+                // Hide after 1 second.
+                setTimeout(function() {
+                    tooltip.hide();
+                }, 1000);
+            })
+            tooltip.show();
 
             navigator.clipboard.writeText(this.href);
-            $("#info-text").html("Link copied to clipboard.");
-        })
+            event.preventDefault();
+        });
     </script>
 </body>
 

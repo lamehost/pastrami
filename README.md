@@ -7,7 +7,7 @@ Pastrami is a secure, minimalist text storage for your sensitive data. It is des
 # Features
 - **Memory-Only database**: Pastrami can operate entirely in memory, offering fast access and retrieval of encrypted text without persisting data to disk.
 - **Item ID Encryption**: Each piece of text is encrypted using its corresponding item ID. This ensures that the encryption key is unique to each stored item, enhancing the security of your sensitive data.
- - **Simple and Lightweight**: The service is designed to be easy to use and does not impose unnecessary complexity. Integration with your applications or systems is straightforward.
+- **Simple and Lightweight**: The service is designed to be easy to use and does not impose unnecessary complexity. Integration with your applications or systems is straightforward.
 
 # Getting started
 To use the Pastrami web service, follow these steps:
