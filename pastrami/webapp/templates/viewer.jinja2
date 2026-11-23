@@ -38,17 +38,6 @@
     <link rel="stylesheet" href="static/github.min.css"
         integrity="sha512-0aPQyyeZrWj9sCA46UlmWgKOP0mUipLQ6OZXu8l4IcAmD2u31EPEy9VcIMvl7SoAaKe8bLXZhYoMaE/in+gcgA=="
         crossorigin="anonymous" referrerpolicy="no-referrer">
-    <style>
-        /* Reset the styling of the textarea object */
-        textarea {
-            resize: none;
-        }
-
-        textarea:focus {
-            outline: none !important;
-            box-shadow: none !important;
-        }
-    </style>
 </head>
 
 <body class="min-vh-100 mh-100">
@@ -79,6 +68,21 @@
             </div>
         </nav>
     </div>
+    {% if text["ephemeral"] %}
+    <div class="modal fade" tabindex="-1" id="ephemeral-modal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-center w-100">Do not reload this page!</h5>
+                </div>
+                <div class="modal-body text-center">
+                    <p class="my-4">This text has deleted from the server when you opened it.</p>
+                    <button type="button" class="btn btn-outline-primary px-4" data-bs-dismiss="modal"><u>C</u>lose</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <script src="static/jquery-3.7.1.min.js"
         integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs"
@@ -130,15 +134,14 @@
         $(document).ready(function () {
             var text = $("code#text").html();
 
-            if (text) {
-                // Calculate stats
-                updateStats(text);
-                // Beautify code
-                hljs.highlightAll();
-            } else {
-                // Set focus on textarea
-                $("textarea#text").focus();
-            }
+            // Calculate stats
+            updateStats(text);
+            // Beautify code
+            hljs.highlightAll();
+            {% if text["ephemeral"] %}
+                // Show ephemeral text alert
+                $("#ephemeral-modal").modal("show");
+            {% endif %}
 
             // Set menu links
             $("#format_as_json").attr("href", document.location.pathname + ".json");
